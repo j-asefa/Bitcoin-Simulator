@@ -172,7 +172,7 @@ protected:
   uint m_fixedTxTimeGeneration;
 
   std::map<Address, uint32_t> filters;
-  std::map<Address, ModeType> peersMode;
+  std::map<Ipv4Address, ModeType> peersMode;
 
   uint lastTxId;
   std::vector<std::string> knownTxHashes;
