@@ -1,3 +1,9 @@
+# How to run this version
+
+./waf --run "default-test --nodes=500 --publicIPNodes=450 --minConnections=18 --maxConnections=64 --txToCreate=500 --blocksOnlyPrivateIPNodes=0 --protocol=0 --netGroups=2"
+
+For installation see next paragraph
+
 # Bitcoin-Simulator, capable of simulating any re-parametrization of Bitcoin
 Bitcoin Simulator is built on ns3, the popular discrete-event simulator. We also made use of rapidjson to facilitate the communication process among the nodes. The purpose of this project is to study how consensus parameteres, network characteristics and protocol modifications affect the scalability, security and efficiency of Proof of Work powered blockchains.
 
@@ -7,7 +13,7 @@ We provide you with a detailed [installation guide](http://arthurgervais.github.
 
 # Crafted through Research
 
-The Bitcoin-Simulator was developed as part of the following publication in CCS'16: 
+The Bitcoin-Simulator was developed as part of the following publication in CCS'16:
 
 [On the Security and Performance of Proof of Work Blockchains](https://eprint.iacr.org/2016/555.pdf)
 
