@@ -10,38 +10,35 @@
 
 namespace ns3 {
 
-BitcoinNodeHelper::BitcoinNodeHelper (std::string protocol, Address address, std::vector<Ipv4Address> &peers, 
+BitcoinNodeHelper::BitcoinNodeHelper (std::string netProtocol, Address address, std::vector<Ipv4Address> &peers,
                                       std::map<Ipv4Address, double> &peersDownloadSpeeds, std::map<Ipv4Address, double> &peersUploadSpeeds,
-                                      nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats) 
+                                      nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats)
 {
   m_factory.SetTypeId ("ns3::BitcoinNode");
-  commonConstructor (protocol, address, peers, peersDownloadSpeeds, peersUploadSpeeds, internetSpeeds, stats);
+  commonConstructor (netProtocol, address, peers, peersDownloadSpeeds, peersUploadSpeeds, internetSpeeds, stats);
 }
 
 BitcoinNodeHelper::BitcoinNodeHelper (void)
 {
 }
 
-void 
-BitcoinNodeHelper::commonConstructor(std::string protocol, Address address, std::vector<Ipv4Address> &peers, 
+void
+BitcoinNodeHelper::commonConstructor(std::string netProtocol, Address address, std::vector<Ipv4Address> &peers,
                                      std::map<Ipv4Address, double> &peersDownloadSpeeds, std::map<Ipv4Address, double> &peersUploadSpeeds,
-                                     nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats) 
+                                     nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats)
 {
-  m_protocol = protocol;
+  m_netProtocol = netProtocol;
   m_address = address;
   m_peersAddresses = peers;
   m_peersDownloadSpeeds = peersDownloadSpeeds;
   m_peersUploadSpeeds = peersUploadSpeeds;
   m_internetSpeeds = internetSpeeds;
   m_nodeStats = stats;
-  m_protocolType = STANDARD_PROTOCOL;
-  
-  m_factory.Set ("Protocol", StringValue (m_protocol));
+  m_factory.Set ("Protocol", StringValue (m_netProtocol));
   m_factory.Set ("Local", AddressValue (m_address));
-
 }
 
-void 
+void
 BitcoinNodeHelper::SetAttribute (std::string name, const AttributeValue &value)
 {
   m_factory.Set (name, value);
@@ -62,7 +59,7 @@ BitcoinNodeHelper::Install (std::string nodeName)
 
 ApplicationContainer
 BitcoinNodeHelper::Install (NodeContainer c)
-{ 
+{
 
   ApplicationContainer apps;
   for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
@@ -82,47 +79,52 @@ BitcoinNodeHelper::InstallPriv (Ptr<Node> node)
   app->SetPeersUploadSpeeds(m_peersUploadSpeeds);
   app->SetNodeInternetSpeeds(m_internetSpeeds);
   app->SetNodeStats(m_nodeStats);
-  app->SetProtocolType(m_protocolType);
+  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_netGroups);
 
   node->AddApplication (app);
 
   return app;
 }
 
-void 
+void
 BitcoinNodeHelper::SetPeersAddresses (std::vector<Ipv4Address> &peersAddresses)
 {
-  m_peersAddresses = peersAddresses;	
+  m_peersAddresses = peersAddresses;
 }
 
-void 
+void
 BitcoinNodeHelper::SetPeersDownloadSpeeds (std::map<Ipv4Address, double> &peersDownloadSpeeds)
 {
   m_peersDownloadSpeeds = peersDownloadSpeeds;
 }
 
-void 
+void
 BitcoinNodeHelper::SetPeersUploadSpeeds (std::map<Ipv4Address, double> &peersUploadSpeeds)
 {
   m_peersUploadSpeeds = peersUploadSpeeds;
 }
 
 
-void 
+void
 BitcoinNodeHelper::SetNodeInternetSpeeds (nodeInternetSpeeds &internetSpeeds)
 {
-  m_internetSpeeds = internetSpeeds;	
+  m_internetSpeeds = internetSpeeds;
 }
 
-void 
+void
 BitcoinNodeHelper::SetNodeStats (nodeStatistics *nodeStats)
 {
   m_nodeStats = nodeStats;
 }
 
-void 
-BitcoinNodeHelper::SetProtocolType (enum ProtocolType protocolType)
+void
+BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups)
 {
-  m_protocolType = protocolType;
+  m_txToCreate = txToCreate;
+  m_protocol = protocol;
+  m_mode = mode;
+  m_netGroups = netGroups;
 }
+
+
 } // namespace ns3
