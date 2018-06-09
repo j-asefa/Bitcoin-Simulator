@@ -135,7 +135,7 @@ BitcoinNode::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups)
+BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r)
 {
   NS_LOG_FUNCTION (this);
   m_txToCreate = txToCreate;
@@ -144,6 +144,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_protocol = protocol;
   m_mode = mode;
   m_netGroups = netGroups;
+  m_r = r;
 }
 
 void
@@ -660,7 +661,7 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
       if (peersMode[*i] == SPY) {
         delay = invIntervalSeconds * 10;
         for (int k = 0; k < m_netGroups; k++) {
-          delay = std::min(delay, PoissonNextSendTo(invIntervalSeconds * 4, k));
+          delay = std::min(delay, PoissonNextSendTo(invIntervalSeconds * m_r, k));
         }
         Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
       } else if (count < 8) {
@@ -669,7 +670,7 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
         count++;
       } else {
         auto netGroup = MurmurHash3Mixer(i->Get()) % m_netGroups;
-        delay = PoissonNextSendTo(invIntervalSeconds * 4, netGroup);
+        delay = PoissonNextSendTo(invIntervalSeconds * m_r, netGroup);
         Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
       }
       m_nodeStats->invSentMessages += 1;

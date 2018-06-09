@@ -12,10 +12,10 @@ namespace ns3 {
 
 BitcoinNodeHelper::BitcoinNodeHelper (std::string netProtocol, Address address, std::vector<Ipv4Address> &peers,
                                       std::map<Ipv4Address, double> &peersDownloadSpeeds, std::map<Ipv4Address, double> &peersUploadSpeeds,
-                                      nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats)
+                                      nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats, int r)
 {
   m_factory.SetTypeId ("ns3::BitcoinNode");
-  commonConstructor (netProtocol, address, peers, peersDownloadSpeeds, peersUploadSpeeds, internetSpeeds, stats);
+  commonConstructor (netProtocol, address, peers, peersDownloadSpeeds, peersUploadSpeeds, internetSpeeds, stats, r);
 }
 
 BitcoinNodeHelper::BitcoinNodeHelper (void)
@@ -25,7 +25,7 @@ BitcoinNodeHelper::BitcoinNodeHelper (void)
 void
 BitcoinNodeHelper::commonConstructor(std::string netProtocol, Address address, std::vector<Ipv4Address> &peers,
                                      std::map<Ipv4Address, double> &peersDownloadSpeeds, std::map<Ipv4Address, double> &peersUploadSpeeds,
-                                     nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats)
+                                     nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats, int r)
 {
   m_netProtocol = netProtocol;
   m_address = address;
@@ -34,6 +34,7 @@ BitcoinNodeHelper::commonConstructor(std::string netProtocol, Address address, s
   m_peersUploadSpeeds = peersUploadSpeeds;
   m_internetSpeeds = internetSpeeds;
   m_nodeStats = stats;
+  m_r = r;
   m_factory.Set ("Protocol", StringValue (m_netProtocol));
   m_factory.Set ("Local", AddressValue (m_address));
 }
@@ -79,7 +80,7 @@ BitcoinNodeHelper::InstallPriv (Ptr<Node> node)
   app->SetPeersUploadSpeeds(m_peersUploadSpeeds);
   app->SetNodeInternetSpeeds(m_internetSpeeds);
   app->SetNodeStats(m_nodeStats);
-  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_netGroups);
+  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_netGroups, m_r);
 
   node->AddApplication (app);
 

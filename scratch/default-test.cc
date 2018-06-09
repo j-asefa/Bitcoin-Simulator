@@ -78,6 +78,8 @@ main (int argc, char *argv[])
 
   Time::SetResolution (Time::NS);
 
+  int r = 1;
+
   CommandLine cmd;
   cmd.AddValue ("nullmsg", "Enable the use of null-message synchronization", nullmsg);
   cmd.AddValue ("nodes", "The total number of nodes in the network", totalNoNodes);
@@ -94,6 +96,7 @@ main (int argc, char *argv[])
 
   cmd.AddValue ("protocol", "Used protocol: 0 — Default, 1 — Filters on links", protocol);
   cmd.AddValue ("netGroups", "How many groups each node has", netGroups);
+  cmd.AddValue ("r", "incoming_inv_interval/outgoing_inv_interval", r);
 
 
   cmd.Parse(argc, argv);
@@ -137,7 +140,7 @@ main (int argc, char *argv[])
 
   //Install simple nodes
   BitcoinNodeHelper bitcoinNodeHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), bitcoinPort),
-                                        nodesConnections[0], peersDownloadSpeeds[0],  peersUploadSpeeds[0], nodesInternetSpeeds[0], stats);
+                                        nodesConnections[0], peersDownloadSpeeds[0],  peersUploadSpeeds[0], nodesInternetSpeeds[0], stats, r);
   ApplicationContainer bitcoinNodes;
 
 

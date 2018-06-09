@@ -79,7 +79,7 @@ public:
    */
   void SetNodeStats(nodeStatistics *nodeStats);
 
-  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups);
+  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r);
 
 protected:
   virtual void DoDispose (void);           // inherited from Application base class.
@@ -170,6 +170,8 @@ protected:
   double          m_uploadSpeed;                      //!< The upload speed of the node in Bytes/s
   double          m_averageTransactionSize;           //!< The average transaction size. Needed for compressed blocks
   uint m_fixedTxTimeGeneration;
+
+  int m_r; // incoming_inv_interval/outgoing_inv_interval;
 
   std::map<Address, uint32_t> filters;
   std::map<Ipv4Address, ModeType> peersMode;

@@ -37,7 +37,7 @@ public:
    */
   BitcoinNodeHelper (std::string netProtocol, Address address, std::vector<Ipv4Address> &peers,
                      std::map<Ipv4Address, double> &peersDownloadSpeeds, std::map<Ipv4Address, double> &peersUploadSpeeds,
-                     nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats);
+                     nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats, int r);
 
   /**
    * Called by subclasses to set a different factory TypeId
@@ -59,7 +59,7 @@ public:
    */
    void commonConstructor(std::string netProtocol, Address address, std::vector<Ipv4Address> &peers,
                           std::map<Ipv4Address, double> &peersDownloadSpeeds, std::map<Ipv4Address, double> &peersUploadSpeeds,
-                          nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats);
+                          nodeInternetSpeeds &internetSpeeds, nodeStatistics *stats, int r);
 
   /**
    * Helper function used to set the underlying application attributes.
@@ -131,7 +131,7 @@ protected:
   enum ProtocolType									  m_protocol;         //!< The protocol that the nodes use to advertise new blocks (DEFAULT: STANDARD)
   enum ModeType									              m_mode;
   int m_netGroups;
-
+  int m_r;  // incoming_inv_interval/outgoing_inv_interval;
 };
 
 } // namespace ns3
