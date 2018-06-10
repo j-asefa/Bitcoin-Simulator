@@ -1,6 +1,6 @@
 # How to run this version
 
-./waf --run "default-test --nodes=500 --publicIPNodes=450 --minConnections=18 --maxConnections=64 --txToCreate=500 --blocksOnlyPrivateIPNodes=0 --protocol=0 --netGroups=2"
+./waf --run "default-test --nodes=500 --publicIPNodes=450 --minConnections=18 --maxConnections=64 --txToCreate=500 --blocksOnlyPrivateIPNodes=0 --protocol=0 --netGroups=2 --r=2"
 
 For installation see next paragraph
 
