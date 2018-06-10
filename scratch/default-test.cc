@@ -37,6 +37,7 @@ int GetNodeIdByIpv4 (Ipv4InterfaceContainer container, Ipv4Address addr);
 void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPNodes, int blocksOnlyPrivateIpNodes);
 void PrintTotalStats (nodeStatistics *stats, int totalNodes, double start, double finish, double averageBlockGenIntervalMinutes, bool relayNetwork);
 void PrintBitcoinRegionStats (uint32_t *bitcoinNodesRegions, uint32_t totalNodes);
+int PoissonDistribution(int value);
 
 NS_LOG_COMPONENT_DEFINE ("MyMpiTest");
 
@@ -134,10 +135,6 @@ main (int argc, char *argv[])
 
 
   std::cout << "Total nodes: " << totalNoNodes << "\n";
-
-  int count = 0;
-
-
   //Install simple nodes
   BitcoinNodeHelper bitcoinNodeHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), bitcoinPort),
                                         nodesConnections[0], peersDownloadSpeeds[0],  peersUploadSpeeds[0], nodesInternetSpeeds[0], stats, r);
@@ -146,10 +143,7 @@ main (int argc, char *argv[])
 
   int startedblocksOnlyPrivateIpNodes;
 
-  int averageTxPerNode = txToCreate / (totalNoNodes - publicIPNodes);
-
-  int txGenerator = 1;
-
+  int txToCreatePerNode = txToCreate / totalNoNodes;
   for(auto &node : nodesConnections)
   {
     Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode (node.first);
@@ -161,22 +155,10 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
 
-      if (count == 0) {
-        // Observer
-        bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), SPY, netGroups);
-      }
-      // tx creator
-      else if (count == txGenerator) {
-        bitcoinNodeHelper.SetProperties(txToCreate, ProtocolType(protocol), REGULAR, netGroups);
-      }
-      else {
-        bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), REGULAR, netGroups);
-      }
-
+      bitcoinNodeHelper.SetProperties(PoissonDistribution(txToCreatePerNode), ProtocolType(protocol), REGULAR, netGroups);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 
-      count++;
       if (systemId == 0)
           nodesInSystemId0++;
   	}
@@ -256,27 +238,27 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
   for (int it = 0; it < totalNodes; it++ )
   {
-    // std::cout << "\nNode " << stats[it].nodeId << " statistics:\n";
-    // std::cout << "Connections = " << stats[it].connections << "\n";
-    // std::cout << "Transactions created = " << stats[it].txCreated << "\n";
-    // std::cout << "Inv sent = " << stats[it].invSentMessages << "\n";
-    // std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
-    // std::cout << "GetData sent = " << stats[it].getDataSentMessages << "\n";
-    // std::cout << "GetData received = " << stats[it].getDataReceivedMessages << "\n";
-    //
-    // std::cout << "Blocks only = " << stats[it].blocksOnly << "\n";
-    // std::cout << "Blocks relayed = " << stats[it].blocksRelayed << "\n";
+    std::cout << "\nNode " << stats[it].nodeId << " statistics:\n";
+    std::cout << "Connections = " << stats[it].connections << "\n";
+    std::cout << "Transactions created = " << stats[it].txCreated << "\n";
+    std::cout << "Inv sent = " << stats[it].invSentMessages << "\n";
+    std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
+    std::cout << "GetData sent = " << stats[it].getDataSentMessages << "\n";
+    std::cout << "GetData received = " << stats[it].getDataReceivedMessages << "\n";
+
+    std::cout << "Blocks only = " << stats[it].blocksOnly << "\n";
+    std::cout << "Blocks relayed = " << stats[it].blocksRelayed << "\n";
 
 
     float usefulInvSentRate = float(stats[it].getDataReceivedMessages) / stats[it].invSentMessages;
     float usefulInvReceivedRate = float(stats[it].getDataSentMessages) / stats[it].invReceivedMessages;
     float invSentMegabytes = float(stats[it].invSentBytes) / 1024 / 1024;
 
-    // std::cout << "Inv sent megabytes = " << invSentMegabytes << "\n";
-    // std::cout << "Useless inv sent megabytes = " << (1.0-usefulInvSentRate) * invSentMegabytes << "\n";
+    std::cout << "Inv sent megabytes = " << invSentMegabytes << "\n";
+    std::cout << "Useless inv sent megabytes = " << (1.0-usefulInvSentRate) * invSentMegabytes << "\n";
 
-    // std::cout << "Useful inv sent rate = " << usefulInvSentRate << "\n";
-    // std::cout << "Useful inv received rate = " << usefulInvReceivedRate << "\n";
+    std::cout << "Useful inv sent rate = " << usefulInvSentRate << "\n";
+    std::cout << "Useful inv received rate = " << usefulInvReceivedRate << "\n";
 
     if (it < publicIPNodes) {
       totalUsefulInvSentRatePublicIPNode += usefulInvSentRate;
@@ -331,6 +313,16 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
 }
 
+
+int PoissonDistribution(int value) {
+    const uint64_t range_from  = 0;
+    const uint64_t range_to    = 1ULL << 48;
+    std::random_device                  rand_dev;
+    std::mt19937                        generator(rand_dev());
+    std::uniform_int_distribution<uint64_t>  distr(range_from, range_to);
+    auto bigRand = distr(generator);
+    return (int)(log1p(bigRand * -0.0000000000000035527136788 /* -1/2^48 */) * value * -1 + 0.5);
+}
 
 
 void PrintTotalStats (nodeStatistics *stats, int totalNodes, double start, double finish, double averageBlockGenIntervalMinutes, bool relayNetwork)

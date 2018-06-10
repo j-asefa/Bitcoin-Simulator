@@ -530,35 +530,10 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
               {
                 std::string   parsedInv = d["inv"][j].GetString();
                 int   hopNumber = d["hop"].GetInt();
-
-                if (hopNumber > 4)
-                  break;
-
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
                   continue;
                 } else {
-                  // Do not relay received from spy (spy relays to speedup the experiment)
-                  if (peersMode[InetSocketAddress::ConvertFrom(from).GetIpv4()] == SPY) {
-                    knownTxHashes.push_back(parsedInv);
-                    break;
-                  }
-
                   m_nodeStats->txReceivedTimes[parsedInv] = Simulator::Now().GetSeconds();
-                  if (m_mode == SPY) {
-                    heardTotal++;
-
-                    std::cout << "----------------------------" << std::endl;
-                    firstTimeHops[hopNumber]++;
-                    std::cout << "0: " << (float)firstTimeHops[0] / heardTotal << std::endl;
-                    std::cout << "1: " << (float)firstTimeHops[1] / heardTotal << std::endl;
-                    std::cout << "2: " << (float)firstTimeHops[2] / heardTotal << std::endl;
-                    std::cout << "3: " << (float)firstTimeHops[3] / heardTotal << std::endl;
-
-                    std::cout << knownTxHashes.size() << ", Fraction heard from creator: " << (float)firstTimeHops[0] / heardTotal << std::endl;
-                    // Spy relays to speed up the simulation (should be fixed for propagation time measurements)
-                    // } else {
-                    //   AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
-                  }
                   AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
                 }
                 knownTxHashes.push_back(parsedInv);
@@ -642,37 +617,13 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
   NS_LOG_FUNCTION (this);
 
   uint numberHash = std::hash<std::string>()(transactionHash);
-  int count = 0;
 
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
-
-    // Does not matter for this simulation
-    // if (m_protocol == FILTERS_ON_LINKS && filters[from] && (numberHash % 8) != filters[from]) {
-    //   continue;
-    // }
-    // if (peersMode[*i] == BLOCKS_ONLY) {
-    //   continue;
-    // }
-
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
-      auto delay = 0;
-      if (peersMode[*i] == SPY) {
-        delay = invIntervalSeconds * 10;
-        for (int k = 0; k < m_netGroups; k++) {
-          delay = std::min(delay, PoissonNextSendTo(invIntervalSeconds * m_r, k));
-        }
-        Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
-      } else if (count < 8) {
-        delay = PoissonNextSend(invIntervalSeconds);
-        Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
-        count++;
-      } else {
-        auto netGroup = MurmurHash3Mixer(i->Get()) % m_netGroups;
-        delay = PoissonNextSendTo(invIntervalSeconds * m_r, netGroup);
-        Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
-      }
+      auto delay = PoissonNextSend(invIntervalSeconds);
+      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
       m_nodeStats->invSentMessages += 1;
     }
   }
