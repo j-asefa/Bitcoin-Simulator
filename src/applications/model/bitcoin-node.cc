@@ -428,15 +428,15 @@ BitcoinNode::EmitTransaction (void)
   int nodeId = GetNode()->GetId();
   double currentTime = Simulator::Now().GetSeconds();
   std::ostringstream stringStream;
-  std::string transactionHash;
 
   m_nodeStats->txCreated++;
 
-  stringStream << m_nodeStats->txCreated << "/" << m_local;
-  transactionHash = stringStream.str();
+  stringStream << m_nodeStats->txCreated << "/" << nodeId;
+  std::string transactionId = stringStream.str();
 
-  AdvertiseNewTransactionInv(InetSocketAddress::ConvertFrom(m_local).GetIpv4(), transactionHash, 0);
-  // m_nodeStats->txReceivedTimes[transactionHash] = Simulator::Now().GetSeconds();
+  AdvertiseNewTransactionInv(InetSocketAddress::ConvertFrom(m_local).GetIpv4(), transactionId, 0);
+
+  SaveTxData(transactionId);
 
   if (m_nodeStats->txCreated >= m_txToCreate)
     return;
@@ -530,14 +530,10 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
               {
                 std::string   parsedInv = d["inv"][j].GetString();
                 int   hopNumber = d["hop"].GetInt();
-
-                if (hopNumber > 4)
-                  break;
-
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
                   continue;
                 } else {
-                  // m_nodeStats->txReceivedTimes[parsedInv] = Simulator::Now().GetSeconds();
+                  SaveTxData(parsedInv);
                   if (m_mode == SPY) {
                     heardTotal++;
                     firstTimeHops[hopNumber]++;
@@ -741,6 +737,15 @@ BitcoinNode::SendMessage(enum Messages receivedMessage,  enum Messages responseM
   }
 }
 
+void BitcoinNode::SaveTxData(std::string txId) {
+  int numericHash = std::hash<std::string>{}(txId);
+  txRecvTime txTime;
+  txTime.nodeId = GetNode()->GetId();
+  txTime.txHash = numericHash;
+  txTime.txTime = Simulator::Now().GetSeconds();
+
+  m_nodeStats->txReceivedTimes.push_back(txTime);
+}
 
 
 void

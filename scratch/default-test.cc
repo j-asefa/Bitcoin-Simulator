@@ -24,6 +24,8 @@
 #include "ns3/applications-module.h"
 #include "ns3/point-to-point-layout-module.h"
 #include "ns3/mpi-interface.h"
+#include <climits>
+
 #define MPI_TEST
 
 #ifdef NS3_MPI
@@ -34,9 +36,11 @@ using namespace ns3;
 
 double get_wall_time();
 int GetNodeIdByIpv4 (Ipv4InterfaceContainer container, Ipv4Address addr);
-void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPNodes, int blocksOnlyPrivateIpNodes);
+void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPNodes, int blocksOnlyPrivateIpNodes, int txToCreate);
 void PrintTotalStats (nodeStatistics *stats, int totalNodes, double start, double finish, double averageBlockGenIntervalMinutes, bool relayNetwork);
 void PrintBitcoinRegionStats (uint32_t *bitcoinNodesRegions, uint32_t totalNodes);
+void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
+   int systemId, int systemCount, int nodesInSystemId0, BitcoinTopologyHelper bitcoinTopologyHelper);
 
 NS_LOG_COMPONENT_DEFINE ("MyMpiTest");
 
@@ -110,8 +114,6 @@ main (int argc, char *argv[])
   stop = targetNumberOfBlocks * averageBlockGenInterval / 60; // minutes
   nodeStatistics *stats = new nodeStatistics[totalNoNodes];
 
-
-
   #ifdef MPI_TEST
     // Distributed simulation setup; by default use granted time window algorithm.
     if(nullmsg)
@@ -163,7 +165,7 @@ main (int argc, char *argv[])
 
   int startedblocksOnlyPrivateIpNodes;
 
-  int averageTxPerNode = txToCreate / (totalNoNodes - publicIPNodes);
+  int averageTxPerNode = txToCreate / totalNoNodes;
 
   int txGenerator = 1;
 
@@ -248,34 +250,33 @@ main (int argc, char *argv[])
       {
         Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode (i);
 
-  	  if (systemId == targetNode->GetSystemId())
-  	  {
-          MPI_Send(&stats[i], 1, mpi_nodeStatisticsType, 0, 8888, MPI_COMM_WORLD);
-  	  }
+    	  if (systemId == targetNode->GetSystemId())
+    	  {
+            MPI_Send(&stats[i], 1, mpi_nodeStatisticsType, 0, 8888, MPI_COMM_WORLD);
+    	  }
       }
     }
     else if (systemId == 0 && systemCount > 1)
     {
       int count = nodesInSystemId0;
 
-  	while (count < totalNoNodes)
-  	{
-  	  MPI_Status status;
+    	while (count < totalNoNodes)
+    	{
+    	  MPI_Status status;
         nodeStatistics recv;
 
-  	  /* std::cout << "SystemId = " << systemId << "\n"; */
-  	  MPI_Recv(&recv, 1, mpi_nodeStatisticsType, MPI_ANY_SOURCE, 8888, MPI_COMM_WORLD, &status);
-
-  /* 	  std::cout << "SystemId 0 received: statistics for node " << recv.nodeId
-                  <<  " from systemId = " << status.MPI_SOURCE << "\n"; */
+    	  MPI_Recv(&recv, 1, mpi_nodeStatisticsType, MPI_ANY_SOURCE, 8888, MPI_COMM_WORLD, &status);
         stats[recv.nodeId].nodeId = recv.nodeId;
         stats[recv.nodeId].firstSpySuccess = recv.firstSpySuccess;
         if (recv.firstSpySuccess > 0)
           std::cout << recv.nodeId << ", First spy success: " << recv.firstSpySuccess << std::endl;
 
-  	  count++;
+  	    count++;
       }
     }
+
+    CollectTxData(stats, totalNoNodes, txToCreate, systemId, systemCount, nodesInSystemId0, bitcoinTopologyHelper);
+
   #endif
 
 
@@ -283,7 +284,7 @@ main (int argc, char *argv[])
   {
     tFinish=get_wall_time();
 
-    PrintStatsForEachNode(stats, totalNoNodes, publicIPNodes, blocksOnlyPrivateIpNodes);
+    PrintStatsForEachNode(stats, totalNoNodes, publicIPNodes, blocksOnlyPrivateIpNodes, txToCreate);
 
 
     std::cout << "\nThe simulation ran for " << tFinish - tStart << "s simulating "
@@ -335,21 +336,21 @@ int GetNodeIdByIpv4 (Ipv4InterfaceContainer container, Ipv4Address addr)
   return -1; //if not found
 }
 
-void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPNodes, int blocksOnlyPrivateIpNodes)
+void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPNodes, int blocksOnlyPrivateIpNodes, int txToCreate)
 {
   float totalUsefulInvSentRatePublicIPNode = 0;
   float totalUsefulInvSentRatePrivateIPNode = 0;
   float totalUsefulInvReceivedRate = 0;
   float totaluselessInvSentMegabytesPublicIPNode = 0;
 
-  std::map<std::string, std::vector<double>> allTxRelayTimes;
+  std::map<int, std::vector<double>> allTxRelayTimes;
 
   for (int it = 0; it < totalNodes; it++ )
   {
-    // std::cout << "\nNode " << stats[it].nodeId << " statistics:\n";
-    // std::cout << "Connections = " << stats[it].connections << "\n";
-    // std::cout << "Transactions created = " << stats[it].txCreated << "\n";
-    // std::cout << "Inv sent = " << stats[it].invSentMessages << "\n";
+    std::cout << "\nNode " << stats[it].nodeId << " statistics:\n";
+    std::cout << "Connections = " << stats[it].connections << "\n";
+    std::cout << "Transactions created = " << stats[it].txCreated << "\n";
+    std::cout << "Inv sent = " << stats[it].invSentMessages << "\n";
     // std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
     // std::cout << "GetData sent = " << stats[it].getDataSentMessages << "\n";
     // std::cout << "GetData received = " << stats[it].getDataReceivedMessages << "\n";
@@ -380,17 +381,17 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     totalUsefulInvReceivedRate += usefulInvReceivedRate;
 
 
-    // for (std::map<std::string,double>::iterator nodeReceivedTxTime=stats[it].txReceivedTimes.begin();
-    //   nodeReceivedTxTime!=stats[it].txReceivedTimes.end(); ++nodeReceivedTxTime)
-    // {
-    //   allTxRelayTimes[nodeReceivedTxTime->first].push_back(nodeReceivedTxTime->second);
-    // }
+    for (int txCount = 0; txCount < txToCreate; txCount++)
+    {
+      txRecvTime txTime = stats[it].txReceivedTimes[txCount];
+      allTxRelayTimes[txTime.txHash].push_back(txTime.txTime);
+    }
 
   }
 
   std::vector<double> fullRelayTimes;
 
-  for (std::map<std::string, std::vector<double>>::iterator txTimes=allTxRelayTimes.begin();
+  for (std::map<int, std::vector<double>>::iterator txTimes=allTxRelayTimes.begin();
     txTimes!=allTxRelayTimes.end(); ++txTimes)
   {
     std::vector<double> relayTimes = txTimes->second;
@@ -412,16 +413,65 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
   std::cout << "Fully relayed transactions: " << fullRelayTimes.size() << "\n";
 
 
-  std::cout << "Average useful inv sent rate (public IP nodes) =" << totalUsefulInvSentRatePublicIPNode / publicIPNodes << "\n";
   // std::cout << "Average useful inv sent rate (private IP nodes) = " << totalUsefulInvSentRatePrivateIPNode / (totalNodes - publicIPNodes) << "\n";
 
   std::cout << "Average useful inv received rate (all) = " << totalUsefulInvReceivedRate / totalNodes << "\n";
 
-  std::cout << "Average useless inv megabytes sent (public IP) = " << totaluselessInvSentMegabytesPublicIPNode / publicIPNodes << "\n";
+  if (publicIPNodes > 0) {
+    std::cout << "Average useful inv sent rate (public IP nodes) =" << totalUsefulInvSentRatePublicIPNode / publicIPNodes << "\n";
+    std::cout << "Average useless inv megabytes sent (public IP) = " << totaluselessInvSentMegabytesPublicIPNode / publicIPNodes << "\n";
+  }
+
 
 }
 
+void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
+  int systemId, int systemCount, int nodesInSystemId0, BitcoinTopologyHelper bitcoinTopologyHelper)
+{
+#ifdef MPI_TEST
 
+  int            blocklen[3] = {1, 1, 1};
+  MPI_Aint       disp[3];
+  MPI_Datatype   dtypes[3] = {MPI_INT, MPI_INT, MPI_DOUBLE};
+  MPI_Datatype   mpi_txRecvTime;
+
+  disp[0] = offsetof(txRecvTime, nodeId);
+  disp[1] = offsetof(txRecvTime, txHash);
+  disp[2] = offsetof(txRecvTime, txTime);
+
+  MPI_Type_create_struct (2, blocklen, disp, dtypes, &mpi_txRecvTime);
+  MPI_Type_commit (&mpi_txRecvTime);
+
+  if (systemId != 0 && systemCount > 1)
+  {
+    for(int i = 0; i < totalNoNodes; i++)
+    {
+      Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode (i);
+
+      if (systemId == targetNode->GetSystemId())
+      {
+          for (int j = 0; j < txToCreate; j++) {
+            MPI_Send(&stats[i].txReceivedTimes[j], 1, mpi_txRecvTime, 0, 9999, MPI_COMM_WORLD);
+          }
+      }
+    }
+  }
+  else if (systemId == 0 && systemCount > 1)
+  {
+    int count = nodesInSystemId0;
+
+    while (count < totalNoNodes)
+    {
+      MPI_Status status;
+      txRecvTime recv;
+
+      MPI_Recv(&recv, 1, mpi_txRecvTime, MPI_ANY_SOURCE, 9999, MPI_COMM_WORLD, &status);
+      stats[recv.nodeId].txReceivedTimes.push_back(recv);
+      count++;
+    }
+  }
+#endif
+}
 
 void PrintTotalStats (nodeStatistics *stats, int totalNodes, double start, double finish, double averageBlockGenIntervalMinutes, bool relayNetwork)
 {

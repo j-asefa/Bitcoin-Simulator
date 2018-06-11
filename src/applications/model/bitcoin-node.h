@@ -123,6 +123,7 @@ protected:
   void ScheduleNextBlockEvent(void);
   void EmitBlock(void);
 
+  void SaveTxData(std::string txId);
 
   void AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber);
 
@@ -211,7 +212,6 @@ protected:
   uint64_t heardTotal;
   std::vector<int> firstTimeHops;
   bool txCreator;
-
 
   Address spy;
   uint64_t       m_txToCreate;

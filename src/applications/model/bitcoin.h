@@ -40,6 +40,12 @@ enum ModeType
   SPY
 };
 
+typedef struct {
+  int nodeId;
+  int txHash;
+  double txTime;
+} txRecvTime;
+
 /**
  * The struct used for collecting node statistics.
  */
@@ -57,12 +63,12 @@ typedef struct {
   int      connections;
 
   int      blocksRelayed;
-
-  // std::map<std::string, double> txReceivedTimes;
-
   double firstSpySuccess;
 
+  std::vector<txRecvTime> txReceivedTimes;
+
 } nodeStatistics;
+
 
 
 typedef struct {
