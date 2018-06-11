@@ -110,8 +110,29 @@ main (int argc, char *argv[])
   stop = targetNumberOfBlocks * averageBlockGenInterval / 60; // minutes
   nodeStatistics *stats = new nodeStatistics[totalNoNodes];
 
-  uint32_t systemId = 0;
-  uint32_t systemCount = 1;
+
+
+  #ifdef MPI_TEST
+    // Distributed simulation setup; by default use granted time window algorithm.
+    if(nullmsg)
+      {
+        GlobalValue::Bind ("SimulatorImplementationType",
+                           StringValue ("ns3::NullMessageSimulatorImpl"));
+      }
+    else
+      {
+        GlobalValue::Bind ("SimulatorImplementationType",
+                           StringValue ("ns3::DistributedSimulatorImpl"));
+      }
+
+    // Enable parallel simulator with the command line arguments
+    MpiInterface::Enable (&argc, &argv);
+    uint32_t systemId = MpiInterface::GetSystemId ();
+    uint32_t systemCount = MpiInterface::GetSize ();
+  #else
+    uint32_t systemId = 0;
+    uint32_t systemCount = 1;
+  #endif
 
 
   LogComponentEnable("BitcoinNode", LOG_LEVEL_INFO);
@@ -132,10 +153,6 @@ main (int argc, char *argv[])
   peersUploadSpeeds = bitcoinTopologyHelper.GetPeersUploadSpeeds();
   nodesInternetSpeeds = bitcoinTopologyHelper.GetNodesInternetSpeeds();
 
-
-  std::cout << "Total nodes: " << totalNoNodes << "\n";
-
-  int count = 0;
 
 
   //Install simple nodes
@@ -161,12 +178,12 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
 
-      if (count == 0) {
+      if (systemId == 0 && nodesInSystemId0 == 0) {
         // Observer
         bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), SPY, netGroups);
       }
       // tx creator
-      else if (count == txGenerator) {
+      else if (systemId == 0 && nodesInSystemId0 == txGenerator) {
         bitcoinNodeHelper.SetProperties(txToCreate, ProtocolType(protocol), REGULAR, netGroups);
       }
       else {
@@ -176,28 +193,91 @@ main (int argc, char *argv[])
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 
-      count++;
       if (systemId == 0)
-          nodesInSystemId0++;
+        nodesInSystemId0++;
   	}
   }
-  std::cout << "start: " << start << "\n";
-  std::cout << "stop: " << stop << "\n";
 
   bitcoinNodes.Start (Seconds (start));
   bitcoinNodes.Stop (Minutes (stop));
 
-
-
-  if (systemId == 0)
-    std::cout << "The applications have been setup.\n";
-
   tStartSimulation = get_wall_time();
-  if (systemId == 0)
+
+
+  if (systemId == 0) {
+    std::cout << "start: " << start << "\n";
+    std::cout << "stop: " << stop << "\n";
+    std::cout << "The applications have been setup.\n";
     std::cout << "Setup time = " << tStartSimulation - tStart << "s\n";
+    std::cout << "Total nodes: " << totalNoNodes << "\n";
+  }
+
   Simulator::Stop (Minutes (stop + 0.1));
   Simulator::Run ();
   Simulator::Destroy ();
+
+  #ifdef MPI_TEST
+
+    int            blocklen[13] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                   1};
+    MPI_Aint       disp[13];
+    MPI_Datatype   dtypes[13] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
+                                 MPI_LONG};
+    MPI_Datatype   mpi_nodeStatisticsType;
+
+    disp[0] = offsetof(nodeStatistics, nodeId);
+    disp[1] = offsetof(nodeStatistics, invReceivedBytes);
+    disp[2] = offsetof(nodeStatistics, invSentBytes);
+    disp[3] = offsetof(nodeStatistics, invReceivedMessages);
+    disp[4] = offsetof(nodeStatistics, invSentMessages);
+    disp[5] = offsetof(nodeStatistics, getDataReceivedBytes);
+    disp[6] = offsetof(nodeStatistics, getDataSentBytes);
+    disp[7] = offsetof(nodeStatistics, getDataReceivedMessages);
+    disp[8] = offsetof(nodeStatistics, getDataSentMessages);
+    disp[9] = offsetof(nodeStatistics, txCreated);
+    disp[10] = offsetof(nodeStatistics, connections);
+    disp[11] = offsetof(nodeStatistics, blocksRelayed);
+    disp[12] = offsetof(nodeStatistics, firstSpySuccess);
+
+    MPI_Type_create_struct (13, blocklen, disp, dtypes, &mpi_nodeStatisticsType);
+    MPI_Type_commit (&mpi_nodeStatisticsType);
+
+    if (systemId != 0 && systemCount > 1)
+    {
+      for(int i = 0; i < totalNoNodes; i++)
+      {
+        Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode (i);
+
+  	  if (systemId == targetNode->GetSystemId())
+  	  {
+          MPI_Send(&stats[i], 1, mpi_nodeStatisticsType, 0, 8888, MPI_COMM_WORLD);
+  	  }
+      }
+    }
+    else if (systemId == 0 && systemCount > 1)
+    {
+      int count = nodesInSystemId0;
+
+  	while (count < totalNoNodes)
+  	{
+  	  MPI_Status status;
+        nodeStatistics recv;
+
+  	  /* std::cout << "SystemId = " << systemId << "\n"; */
+  	  MPI_Recv(&recv, 1, mpi_nodeStatisticsType, MPI_ANY_SOURCE, 8888, MPI_COMM_WORLD, &status);
+
+  /* 	  std::cout << "SystemId 0 received: statistics for node " << recv.nodeId
+                  <<  " from systemId = " << status.MPI_SOURCE << "\n"; */
+        stats[recv.nodeId].nodeId = recv.nodeId;
+        stats[recv.nodeId].firstSpySuccess = recv.firstSpySuccess;
+        if (recv.firstSpySuccess > 0)
+          std::cout << recv.nodeId << ", First spy success: " << recv.firstSpySuccess << std::endl;
+
+  	  count++;
+      }
+    }
+  #endif
+
 
   if (systemId == 0)
   {
@@ -214,6 +294,16 @@ main (int argc, char *argv[])
               << "\n" << "Protocol Type: " << protocol << "\n";
 
   }
+
+  #ifdef MPI_TEST
+
+    // Exit the MPI execution environment
+    MpiInterface::Disable ();
+
+
+  #else
+     NS_FATAL_ERROR ("Can't use distributed simulator without MPI compiled in");
+   #endif
 
   delete[] stats;
 
@@ -290,11 +380,11 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     totalUsefulInvReceivedRate += usefulInvReceivedRate;
 
 
-    for (std::map<std::string,double>::iterator nodeReceivedTxTime=stats[it].txReceivedTimes.begin();
-      nodeReceivedTxTime!=stats[it].txReceivedTimes.end(); ++nodeReceivedTxTime)
-    {
-      allTxRelayTimes[nodeReceivedTxTime->first].push_back(nodeReceivedTxTime->second);
-    }
+    // for (std::map<std::string,double>::iterator nodeReceivedTxTime=stats[it].txReceivedTimes.begin();
+    //   nodeReceivedTxTime!=stats[it].txReceivedTimes.end(); ++nodeReceivedTxTime)
+    // {
+    //   allTxRelayTimes[nodeReceivedTxTime->first].push_back(nodeReceivedTxTime->second);
+    // }
 
   }
 

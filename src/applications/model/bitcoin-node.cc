@@ -228,7 +228,7 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
   m_nodeStats->blocksRelayed = 0;
   m_nodeStats->connections = m_peersAddresses.size();
 
-  m_nodeStats->blocksOnly = m_mode == (BLOCKS_ONLY);
+  m_nodeStats->firstSpySuccess = 0;
 
   if (m_protocol == FILTERS_ON_LINKS) {
     AnnounceFilters();
@@ -436,7 +436,7 @@ BitcoinNode::EmitTransaction (void)
   transactionHash = stringStream.str();
 
   AdvertiseNewTransactionInv(InetSocketAddress::ConvertFrom(m_local).GetIpv4(), transactionHash, 0);
-  m_nodeStats->txReceivedTimes[transactionHash] = Simulator::Now().GetSeconds();
+  // m_nodeStats->txReceivedTimes[transactionHash] = Simulator::Now().GetSeconds();
 
   if (m_nodeStats->txCreated >= m_txToCreate)
     return;
@@ -537,29 +537,17 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
                   continue;
                 } else {
-                  // Do not relay received from spy (spy relays to speedup the experiment)
-                  if (peersMode[InetSocketAddress::ConvertFrom(from).GetIpv4()] == SPY) {
-                    knownTxHashes.push_back(parsedInv);
-                    break;
-                  }
-
-                  m_nodeStats->txReceivedTimes[parsedInv] = Simulator::Now().GetSeconds();
+                  // m_nodeStats->txReceivedTimes[parsedInv] = Simulator::Now().GetSeconds();
                   if (m_mode == SPY) {
                     heardTotal++;
-
-                    std::cout << "----------------------------" << std::endl;
                     firstTimeHops[hopNumber]++;
-                    std::cout << "0: " << (float)firstTimeHops[0] / heardTotal << std::endl;
-                    std::cout << "1: " << (float)firstTimeHops[1] / heardTotal << std::endl;
-                    std::cout << "2: " << (float)firstTimeHops[2] / heardTotal << std::endl;
-                    std::cout << "3: " << (float)firstTimeHops[3] / heardTotal << std::endl;
-
                     std::cout << knownTxHashes.size() << ", Fraction heard from creator: " << (float)firstTimeHops[0] / heardTotal << std::endl;
-                    // Spy relays to speed up the simulation (should be fixed for propagation time measurements)
-                    // } else {
-                    //   AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
+                    m_nodeStats->firstSpySuccess = (float)firstTimeHops[0] / heardTotal;
+
+                    // std::cout << knownTxHashes.size() << ", Fraction heard from creator: " << (float)firstTimeHops[0] / heardTotal << std::endl;
+                  } else {
+                    AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
                   }
-                  AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
                 }
                 knownTxHashes.push_back(parsedInv);
                 // requestTxs.push_back(parsedInv);

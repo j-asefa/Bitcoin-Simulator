@@ -58,9 +58,10 @@ typedef struct {
 
   int      blocksRelayed;
 
-  bool blocksOnly;
+  // std::map<std::string, double> txReceivedTimes;
 
-  std::map<std::string, double> txReceivedTimes;
+  double firstSpySuccess;
+
 } nodeStatistics;
 
 
