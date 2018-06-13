@@ -224,7 +224,7 @@ main (int argc, char *argv[])
                                    1};
     MPI_Aint       disp[13];
     MPI_Datatype   dtypes[13] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
-                                 MPI_LONG};
+                                 MPI_DOUBLE};
     MPI_Datatype   mpi_nodeStatisticsType;
 
     disp[0] = offsetof(nodeStatistics, nodeId);
@@ -389,26 +389,47 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
   }
 
+  std::vector<double> fiftyPercentRelayTimes;
+  std::vector<double> seventyFivePercentRelayTimes;
+  std::vector<double> ninetyNinePercentRelayTimes;
   std::vector<double> fullRelayTimes;
 
   for (std::map<int, std::vector<double>>::iterator txTimes=allTxRelayTimes.begin();
     txTimes!=allTxRelayTimes.end(); ++txTimes)
   {
     std::vector<double> relayTimes = txTimes->second;
+    std::sort(relayTimes.begin(), relayTimes.end());
 
-    if (relayTimes.size() < (totalNodes - blocksOnlyPrivateIpNodes) * 0.75) {
-      std::cout << "Relayed: " << relayTimes.size() << ", to be full relay: " << (totalNodes - blocksOnlyPrivateIpNodes) * 0.75 << std::endl;
+    int wasRelayedTimes = relayTimes.size();
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.5) {
       continue;
     }
 
+    fiftyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes / 2) - relayTimes.front());
 
-    auto relayStart =  *min_element(relayTimes.begin(), relayTimes.end());
-    auto relayEnd =  *max_element(relayTimes.begin(), relayTimes.end());
-    // std::vector<double> sortedRelayTimes = std::sort(relayTimes.begin(), relayTimes.end());
-    fullRelayTimes.push_back(relayEnd - relayStart);
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.75) {
+      continue;
+    }
+    seventyFivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 3 / 4) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.99) {
+      continue;
+    }
+
+    ninetyNinePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 99 / 100) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes)) {
+      continue;
+    }
+
+    fullRelayTimes.push_back(relayTimes.back() - relayTimes.front());
   }
 
-  std::cout << "Average full relay time: " << accumulate(fullRelayTimes.begin(), fullRelayTimes.end(), 0.0) / fullRelayTimes.size() << "\n";
+  std::cout << "Average 50% relay time: " << accumulate(fiftyPercentRelayTimes.begin(), fiftyPercentRelayTimes.end(), 0.0) / fiftyPercentRelayTimes.size() << "\n";
+  std::cout << "Average 75% relay time: " << accumulate(seventyFivePercentRelayTimes.begin(), seventyFivePercentRelayTimes.end(), 0.0) / seventyFivePercentRelayTimes.size() << "\n";
+  std::cout << "Average 99% relay time: " << accumulate(ninetyNinePercentRelayTimes.begin(), ninetyNinePercentRelayTimes.end(), 0.0) / ninetyNinePercentRelayTimes.size() << "\n";
+  std::cout << "Average 100% relay time: " << accumulate(fullRelayTimes.begin(), fullRelayTimes.end(), 0.0) / fullRelayTimes.size() << "\n";
   std::cout << "Generated transactions: " << allTxRelayTimes.size() << "\n";
   std::cout << "Fully relayed transactions: " << fullRelayTimes.size() << "\n";
 
@@ -432,22 +453,21 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
 
   int            blocklen[3] = {1, 1, 1};
   MPI_Aint       disp[3];
-  MPI_Datatype   dtypes[3] = {MPI_INT, MPI_INT, MPI_DOUBLE};
+  MPI_Datatype   dtypes[3] = {MPI_INT, MPI_INT, MPI_INT};
   MPI_Datatype   mpi_txRecvTime;
 
   disp[0] = offsetof(txRecvTime, nodeId);
   disp[1] = offsetof(txRecvTime, txHash);
   disp[2] = offsetof(txRecvTime, txTime);
 
-  MPI_Type_create_struct (2, blocklen, disp, dtypes, &mpi_txRecvTime);
+  MPI_Type_create_struct (3, blocklen, disp, dtypes, &mpi_txRecvTime);
   MPI_Type_commit (&mpi_txRecvTime);
 
   if (systemId != 0 && systemCount > 1)
   {
     for(int i = 0; i < totalNoNodes; i++)
     {
-      Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode (i);
-
+      Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode(i);
       if (systemId == targetNode->GetSystemId())
       {
           for (int j = 0; j < txToCreate; j++) {
@@ -458,13 +478,12 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
   }
   else if (systemId == 0 && systemCount > 1)
   {
-    int count = nodesInSystemId0;
+    int count = 0;
+    MPI_Status status;
+    txRecvTime recv;
 
-    while (count < totalNoNodes)
+    while (count < (totalNoNodes - nodesInSystemId0) * txToCreate)
     {
-      MPI_Status status;
-      txRecvTime recv;
-
       MPI_Recv(&recv, 1, mpi_txRecvTime, MPI_ANY_SOURCE, 9999, MPI_COMM_WORLD, &status);
       stats[recv.nodeId].txReceivedTimes.push_back(recv);
       count++;

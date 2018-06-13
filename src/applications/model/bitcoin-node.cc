@@ -643,7 +643,7 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
     {
       auto delay = 0;
       if (peersMode[*i] == SPY) {
-        delay = invIntervalSeconds * 10;
+        delay = invIntervalSeconds * 100;
         for (int k = 0; k < m_netGroups; k++) {
           delay = std::min(delay, PoissonNextSendTo(invIntervalSeconds * m_r, k));
         }
