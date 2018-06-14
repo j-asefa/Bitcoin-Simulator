@@ -267,10 +267,11 @@ main (int argc, char *argv[])
 
     	  MPI_Recv(&recv, 1, mpi_nodeStatisticsType, MPI_ANY_SOURCE, 8888, MPI_COMM_WORLD, &status);
         stats[recv.nodeId].nodeId = recv.nodeId;
+        stats[recv.nodeId].connections = recv.connections;
+        stats[recv.nodeId].txCreated = recv.txCreated;
+        stats[recv.nodeId].invSentMessages = recv.invSentMessages;
+        stats[recv.nodeId].getDataReceivedMessages = recv.getDataReceivedMessages;
         stats[recv.nodeId].firstSpySuccess = recv.firstSpySuccess;
-        if (recv.firstSpySuccess > 0)
-          std::cout << recv.nodeId << ", First spy success: " << recv.firstSpySuccess << std::endl;
-
   	    count++;
       }
     }

@@ -53,13 +53,13 @@ typedef struct {
   int      nodeId;
   long     invReceivedBytes;
   long     invSentBytes;
-  int64_t     invReceivedMessages;
-  int64_t     invSentMessages;
+  long     invReceivedMessages;
+  long     invSentMessages;
   long     getDataReceivedBytes;
   long     getDataSentBytes;
-  int64_t     getDataReceivedMessages;
-  int64_t     getDataSentMessages;
-  int64_t txCreated;
+  long     getDataReceivedMessages;
+  long     getDataSentMessages;
+  long txCreated;
   int      connections;
 
   int      blocksRelayed;
