@@ -67,10 +67,13 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
       m_maxConnections[i] = m_minConnectionsPerNode;
     else
       m_maxConnections[i] = m_maxConnectionsPerNode;
+
 		// Simulation for poisson PR
 		if (i == 0) {
 			m_minConnections[i] = m_totalNoNodes - 1;
 			m_maxConnections[i] = m_totalNoNodes - 1;
+		} else {
+			m_minConnections[i]++;
 		}
   }
 
