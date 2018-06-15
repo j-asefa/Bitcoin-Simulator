@@ -284,7 +284,7 @@ main (int argc, char *argv[])
   {
     tFinish=get_wall_time();
 
-    // PrintStatsForEachNode(stats, totalNoNodes, publicIPNodes, blocksOnlyPrivateIpNodes, txToCreate);
+    PrintStatsForEachNode(stats, totalNoNodes, publicIPNodes, blocksOnlyPrivateIpNodes, txToCreate);
 
 
     std::cout << "\nThe simulation ran for " << tFinish - tStart << "s simulating "
