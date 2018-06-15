@@ -275,11 +275,7 @@ BitcoinNode::AnnounceFilters (void)
     // filterValue.SetInt(count++ % 8);
 
     // Modified filters to choose odd-even
-    // filterData.AddMember("nodeId", GetNode()->GetId(), filterData.GetAllocator());
-    filterValue.SetInt(count++ % 2);
-
-
-
+    filterValue.SetInt(GetNode()->GetId());
     filterData.AddMember("filter", filterValue, filterData.GetAllocator());
     rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);

@@ -467,12 +467,13 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
 
   if (systemId != 0 && systemCount > 1)
   {
-    for(int i = 0; i < totalNoNodes; i++)
+    for(int i = nodesInSystemId0; i < totalNoNodes; i++)
     {
       Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode(i);
       if (systemId == targetNode->GetSystemId())
       {
-          for (int j = 0; j < txToCreate; j++) {
+          std::cout << "Node has tx, sending: " << stats[i].txReceived << std::endl;
+          for (int j = 0; j < stats[i].txReceived; j++) {
             MPI_Send(&stats[i].txReceivedTimes[j], 1, mpi_txRecvTime, 0, 9999, MPI_COMM_WORLD);
           }
       }
@@ -480,15 +481,23 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
   }
   else if (systemId == 0 && systemCount > 1)
   {
-    int count = 0;
+    int count = nodesInSystemId0;
     MPI_Status status;
     txRecvTime recv;
 
-    while (count < (totalNoNodes - nodesInSystemId0) * txToCreate)
+    while (count < totalNoNodes)
     {
-      MPI_Recv(&recv, 1, mpi_txRecvTime, MPI_ANY_SOURCE, 9999, MPI_COMM_WORLD, &status);
-      stats[recv.nodeId].txReceivedTimes.push_back(recv);
-      count++;
+      for (int j = 0; j < stats[count].txReceived; j++)
+       {
+          MPI_Recv(&recv, 1, mpi_txRecvTime, MPI_ANY_SOURCE, 9999, MPI_COMM_WORLD, &status);
+          if (recv.nodeId > totalNoNodes) {
+            std::cout << "Recv from: " << recv.nodeId << std::endl;
+            std::cout << "Recv txTime: " << recv.txTime << std::endl;
+            std::cout << "Recv hash: " << recv.txHash << std::endl;
+          }
+        stats[recv.nodeId].txReceivedTimes.push_back(recv);
+        count++;
+      }
     }
   }
 #endif
