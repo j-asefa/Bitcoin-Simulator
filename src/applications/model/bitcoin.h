@@ -65,6 +65,7 @@ typedef struct {
   int      blocksRelayed;
   double firstSpySuccess;
 
+  int txReceived;
   std::vector<txRecvTime> txReceivedTimes;
 
 } nodeStatistics;

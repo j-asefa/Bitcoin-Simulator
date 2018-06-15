@@ -219,11 +219,11 @@ main (int argc, char *argv[])
 
   #ifdef MPI_TEST
 
-    int            blocklen[13] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                   1};
-    MPI_Aint       disp[13];
-    MPI_Datatype   dtypes[13] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
-                                 MPI_DOUBLE};
+    int            blocklen[14] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                   1, 1};
+    MPI_Aint       disp[14];
+    MPI_Datatype   dtypes[14] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
+                                 MPI_DOUBLE, MPI_INT};
     MPI_Datatype   mpi_nodeStatisticsType;
 
     disp[0] = offsetof(nodeStatistics, nodeId);
@@ -239,8 +239,9 @@ main (int argc, char *argv[])
     disp[10] = offsetof(nodeStatistics, connections);
     disp[11] = offsetof(nodeStatistics, blocksRelayed);
     disp[12] = offsetof(nodeStatistics, firstSpySuccess);
+    disp[13] = offsetof(nodeStatistics, txReceived);
 
-    MPI_Type_create_struct (13, blocklen, disp, dtypes, &mpi_nodeStatisticsType);
+    MPI_Type_create_struct (14, blocklen, disp, dtypes, &mpi_nodeStatisticsType);
     MPI_Type_commit (&mpi_nodeStatisticsType);
 
     if (systemId != 0 && systemCount > 1)
@@ -271,6 +272,7 @@ main (int argc, char *argv[])
         stats[recv.nodeId].invSentMessages = recv.invSentMessages;
         stats[recv.nodeId].getDataReceivedMessages = recv.getDataReceivedMessages;
         stats[recv.nodeId].firstSpySuccess = recv.firstSpySuccess;
+        stats[recv.nodeId].txReceived = recv.txReceived;
   	    count++;
       }
     }
@@ -371,7 +373,6 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     // std::cout << "Useful inv received rate = " << usefulInvReceivedRate << "\n";
 
     if (it < publicIPNodes) {
-      std::cout << "Adding useful inv sent rate: " << usefulInvSentRate << std::endl;
       totalUsefulInvSentRatePublicIPNode += usefulInvSentRate;
       totaluselessInvSentMegabytesPublicIPNode += (1.0-usefulInvSentRate) * invSentMegabytes;
     }

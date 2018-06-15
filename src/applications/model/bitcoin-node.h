@@ -174,7 +174,7 @@ protected:
 
   int m_r; // incoming_inv_interval/outgoing_inv_interval;
 
-  std::map<Address, uint32_t> filters;
+  std::map<Ipv4Address, uint32_t> filters;
   std::map<Ipv4Address, ModeType> peersMode;
 
   uint lastTxId;
@@ -185,7 +185,7 @@ protected:
   uint32_t gotGetData;
 
 
-  std::map<std::string, std::vector<Address>> peersKnowTx;
+  std::map<std::string, std::vector<Ipv4Address>> peersKnowTx;
 
 
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers

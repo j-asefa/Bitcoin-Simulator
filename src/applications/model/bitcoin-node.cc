@@ -229,6 +229,7 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
   m_nodeStats->connections = m_peersAddresses.size();
 
   m_nodeStats->firstSpySuccess = 0;
+  m_nodeStats->txReceived = 0;
 
   if (m_protocol == FILTERS_ON_LINKS) {
     AnnounceFilters();
@@ -513,7 +514,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
             case FILTER:
             {
               uint32_t filter = d["filter"].GetInt();
-              filters[from] = filter;
+              filters[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filter;
               break;
             }
             case MODE:
@@ -530,7 +531,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
               {
                 std::string   parsedInv = d["inv"][j].GetString();
                 int   hopNumber = d["hop"].GetInt();
-                peersKnowTx[parsedInv].push_back(from);
+                peersKnowTx[parsedInv].push_back(InetSocketAddress::ConvertFrom(from).GetIpv4());
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
                   continue;
                 } else {
@@ -620,17 +621,10 @@ void
 BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber)
 {
   NS_LOG_FUNCTION (this);
-
-  uint numberHash = std::hash<std::string>()(transactionHash);
   int count = 0;
 
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
-
-    // Does not matter for this simulation
-    // if (m_protocol == FILTERS_ON_LINKS && filters[from] && (numberHash % 8) != filters[from]) {
-    //   continue;
-    // }
     // if (peersMode[*i] == BLOCKS_ONLY) {
     //   continue;
     // }
@@ -689,6 +683,8 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   m_nodeStats->invSentMessages += 1;
   m_nodeStats->invSentBytes += m_bitcoinMessageHeader + m_countBytes + 1*m_inventorySizeBytes;
 
+  peersKnowTx[transactionHash].push_back(receiver);
+
 }
 
 void
@@ -742,6 +738,7 @@ void BitcoinNode::SaveTxData(std::string txId) {
   txTime.txTime = Simulator::Now().GetSeconds();
   m_nodeStats->txReceivedTimes.push_back(txTime);
   knownTxHashes.push_back(txId);
+  m_nodeStats->txReceived++;
 }
 
 
