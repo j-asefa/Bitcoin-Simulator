@@ -384,7 +384,7 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     totalUsefulInvReceivedRate += usefulInvReceivedRate;
 
 
-    for (int txCount = 0; txCount < txToCreate; txCount++)
+    for (int txCount = 0; txCount < stats[it].txReceived; txCount++)
     {
       txRecvTime txTime = stats[it].txReceivedTimes[txCount];
       allTxRelayTimes[txTime.txHash].push_back(txTime.txTime);

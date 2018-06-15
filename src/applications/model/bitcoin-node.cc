@@ -651,6 +651,29 @@ void
 BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber) {
   if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end())
     return;
+
+  // Binary filters based on node Id
+  if (m_protocol == FILTERS_ON_LINKS) {
+    auto filterValue = filters[receiver];
+    uint numberHash = std::hash<std::string>()(transactionHash);
+    int nodeIdHash = MurmurHash3Mixer(m_nodeStats->nodeId) % 1000;
+    int peerIdHash = MurmurHash3Mixer(filterValue) % 1000;
+    int product = nodeIdHash * peerIdHash;
+    bool largeSendsEven = (MurmurHash3Mixer(product) % 2) == 0;
+    bool evenHash = (numberHash % 2) != 0;
+    if (largeSendsEven) {
+      if (nodeIdHash > peerIdHash && evenHash)
+        return;
+      if (nodeIdHash < peerIdHash && !evenHash)
+        return;
+    } else {
+      if (nodeIdHash > peerIdHash && !evenHash)
+        return;
+      if (nodeIdHash < peerIdHash && evenHash)
+        return;
+    }
+  }
+
   rapidjson::Document inv;
   inv.SetObject();
 
