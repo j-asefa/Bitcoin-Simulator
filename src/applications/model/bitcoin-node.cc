@@ -272,10 +272,7 @@ BitcoinNode::AnnounceFilters (void)
   int count = 0;
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
-    // filterValue.SetInt(count++ % 8);
-
-    // Modified filters to choose odd-even
-    filterValue.SetInt(GetNode()->GetId());
+    filterValue.SetInt(count++ % 8);
     filterData.AddMember("filter", filterValue, filterData.GetAllocator());
     rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
@@ -638,26 +635,11 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end())
     return;
 
-  // Binary filters based on node Id
   if (m_protocol == FILTERS_ON_LINKS) {
-    auto filterValue = filters[receiver];
     uint numberHash = std::hash<std::string>()(transactionHash);
-    int nodeIdHash = MurmurHash3Mixer(m_nodeStats->nodeId) % 1000;
-    int peerIdHash = MurmurHash3Mixer(filterValue) % 1000;
-    int product = nodeIdHash * peerIdHash;
-    bool largeSendsEven = (MurmurHash3Mixer(product) % 2) == 0;
-    bool evenHash = (numberHash % 2) != 0;
-    if (largeSendsEven) {
-      if (nodeIdHash > peerIdHash && evenHash)
-        return;
-      if (nodeIdHash < peerIdHash && !evenHash)
-        return;
-    } else {
-      if (nodeIdHash > peerIdHash && !evenHash)
-        return;
-      if (nodeIdHash < peerIdHash && evenHash)
-        return;
-    }
+    auto filterValue = filters[receiver];
+    if (filterValue != numberHash % 8)
+      return;
   }
 
   rapidjson::Document inv;
@@ -689,7 +671,6 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   m_nodeStats->invSentBytes += m_bitcoinMessageHeader + m_countBytes + 1*m_inventorySizeBytes;
 
   peersKnowTx[transactionHash].push_back(receiver);
-
 }
 
 void

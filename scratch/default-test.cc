@@ -180,7 +180,7 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
 
-      bitcoinNodeHelper.SetProperties(PoissonDistribution(txToCreatePerNode), ProtocolType(protocol), REGULAR, netGroups);
+      bitcoinNodeHelper.SetProperties(PoissonDistribution(averageTxPerNode), ProtocolType(protocol), REGULAR, netGroups);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 
@@ -435,11 +435,6 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
 }
 
-void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
-  int systemId, int systemCount, int nodesInSystemId0, BitcoinTopologyHelper bitcoinTopologyHelper)
-{
-#ifdef MPI_TEST
-
 int PoissonDistribution(int value) {
     const uint64_t range_from  = 0;
     const uint64_t range_to    = 1ULL << 48;
@@ -449,6 +444,12 @@ int PoissonDistribution(int value) {
     auto bigRand = distr(generator);
     return (int)(log1p(bigRand * -0.0000000000000035527136788 /* -1/2^48 */) * value * -1 + 0.5);
 }
+
+
+void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
+  int systemId, int systemCount, int nodesInSystemId0, BitcoinTopologyHelper bitcoinTopologyHelper)
+{
+#ifdef MPI_TEST
   int            blocklen[3] = {1, 1, 1};
   MPI_Aint       disp[3];
   MPI_Datatype   dtypes[3] = {MPI_INT, MPI_INT, MPI_INT};
@@ -468,7 +469,6 @@ int PoissonDistribution(int value) {
       Ptr<Node> targetNode = bitcoinTopologyHelper.GetNode(i);
       if (systemId == targetNode->GetSystemId())
       {
-          std::cout << "Node has tx, sending: " << stats[i].txReceived << std::endl;
           for (int j = 0; j < stats[i].txReceived; j++) {
             MPI_Send(&stats[i].txReceivedTimes[j], 1, mpi_txRecvTime, 0, 9999, MPI_COMM_WORLD);
           }
@@ -486,13 +486,8 @@ int PoissonDistribution(int value) {
       for (int j = 0; j < stats[count].txReceived; j++)
        {
           MPI_Recv(&recv, 1, mpi_txRecvTime, MPI_ANY_SOURCE, 9999, MPI_COMM_WORLD, &status);
-          if (recv.nodeId > totalNoNodes) {
-            std::cout << "Recv from: " << recv.nodeId << std::endl;
-            std::cout << "Recv txTime: " << recv.txTime << std::endl;
-            std::cout << "Recv hash: " << recv.txHash << std::endl;
-          }
-        stats[recv.nodeId].txReceivedTimes.push_back(recv);
-        count++;
+          stats[recv.nodeId].txReceivedTimes.push_back(recv);
+          count++;
       }
     }
   }
