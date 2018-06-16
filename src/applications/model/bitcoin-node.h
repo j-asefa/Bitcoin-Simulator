@@ -123,6 +123,7 @@ protected:
   void ScheduleNextBlockEvent(void);
   void EmitBlock(void);
 
+  void SaveTxData(std::string txId);
 
   void AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber);
 
@@ -173,7 +174,7 @@ protected:
 
   int m_r; // incoming_inv_interval/outgoing_inv_interval;
 
-  std::map<Address, uint32_t> filters;
+  std::map<Ipv4Address, uint32_t> filters;
   std::map<Ipv4Address, ModeType> peersMode;
 
   uint lastTxId;
@@ -184,7 +185,7 @@ protected:
   uint32_t gotGetData;
 
 
-  std::map<std::string, std::vector<Address>> peersKnowTx;
+  std::map<std::string, std::vector<Ipv4Address>> peersKnowTx;
 
 
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers
@@ -211,7 +212,6 @@ protected:
   uint64_t heardTotal;
   std::vector<int> firstTimeHops;
   bool txCreator;
-
 
   Address spy;
   uint64_t       m_txToCreate;

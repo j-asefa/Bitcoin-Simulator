@@ -40,6 +40,12 @@ enum ModeType
   SPY
 };
 
+typedef struct {
+  int nodeId;
+  int txHash;
+  int txTime;
+} txRecvTime;
+
 /**
  * The struct used for collecting node statistics.
  */
@@ -47,21 +53,23 @@ typedef struct {
   int      nodeId;
   long     invReceivedBytes;
   long     invSentBytes;
-  int64_t     invReceivedMessages;
-  int64_t     invSentMessages;
+  long     invReceivedMessages;
+  long     invSentMessages;
   long     getDataReceivedBytes;
   long     getDataSentBytes;
-  int64_t     getDataReceivedMessages;
-  int64_t     getDataSentMessages;
-  int64_t txCreated;
+  long     getDataReceivedMessages;
+  long     getDataSentMessages;
+  long txCreated;
   int      connections;
 
   int      blocksRelayed;
+  double firstSpySuccess;
 
-  bool blocksOnly;
+  int txReceived;
+  std::vector<txRecvTime> txReceivedTimes;
 
-  std::map<std::string, double> txReceivedTimes;
 } nodeStatistics;
+
 
 
 typedef struct {
