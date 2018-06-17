@@ -268,16 +268,15 @@ void
 BitcoinNode::AnnounceFilters (void)
 {
   const uint8_t delimiter[] = "#";
-  rapidjson::Document filterData;
-  rapidjson::Value value;
-  value = FILTER;
-  filterData.SetObject();
-  filterData.AddMember("message", value, filterData.GetAllocator());
-  rapidjson::Value filterValue;
-
   int count = 0;
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
+    rapidjson::Document filterData;
+    rapidjson::Value value;
+    value = FILTER;
+    filterData.SetObject();
+    filterData.AddMember("message", value, filterData.GetAllocator());
+    rapidjson::Value filterValue;
     filterValue.SetInt(count++ % 8);
     filterData.AddMember("filter", filterValue, filterData.GetAllocator());
     rapidjson::StringBuffer filterInfo;
@@ -544,34 +543,32 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                     AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
                   }
                 }
-                // requestTxs.push_back(parsedInv);
+                requestTxs.push_back(parsedInv);
+              }
+              if (requestTxs.size() == 0)
+                break;
+
+              rapidjson::Value   value;
+              rapidjson::Value   array(rapidjson::kArrayType);
+              d.RemoveMember("inv");
+
+              for (auto tx_it = requestTxs.begin(); tx_it < requestTxs.end(); tx_it++)
+              {
+                value.SetString(tx_it->c_str(), tx_it->size(), d.GetAllocator());
+                array.PushBack(value, d.GetAllocator());
               }
 
-              // Do not need to send getData
-              // if (requestTxs.size() == 0)
-              //   break;
-              //
-              // rapidjson::Value   value;
-              // rapidjson::Value   array(rapidjson::kArrayType);
-              // d.RemoveMember("inv");
-              //
-              // for (auto tx_it = requestTxs.begin(); tx_it < requestTxs.end(); tx_it++)
-              // {
-              //   value.SetString(tx_it->c_str(), tx_it->size(), d.GetAllocator());
-              //   array.PushBack(value, d.GetAllocator());
-              // }
-              //
-              // d.AddMember("transactions", array, d.GetAllocator());
-              // // SendMessage(INV, GET_DATA, d, from);
+              d.AddMember("transactions", array, d.GetAllocator());
+              SendMessage(INV, GET_DATA, d, from);
               break;
             }
-            // case GET_DATA:
-            // {
-            //   NS_LOG_INFO ("GET_DATA");
-            //   m_nodeStats->getDataReceivedMessages += 1;
-            //   SendMessage(GET_DATA, TX, d, from);
-            //   break;
-            // }
+            case GET_DATA:
+            {
+              NS_LOG_INFO ("GET_DATA");
+              m_nodeStats->getDataReceivedMessages += 1;
+              // SendMessage(GET_DATA, TX, d, from);
+              break;
+            }
             // case TX:
             // {
             //   rapidjson::StringBuffer buffer;
