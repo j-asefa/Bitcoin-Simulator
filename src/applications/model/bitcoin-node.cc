@@ -135,7 +135,7 @@ BitcoinNode::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r)
+BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId)
 {
   NS_LOG_FUNCTION (this);
   m_txToCreate = txToCreate;
@@ -145,6 +145,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_mode = mode;
   m_netGroups = netGroups;
   m_r = r;
+  m_systemId = systemId;
 }
 
 void
@@ -216,6 +217,8 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
   NS_LOG_DEBUG ("Node " << GetNode()->GetId() << ": After creating sockets");
 
   m_nodeStats->nodeId = GetNode()->GetId();
+  m_nodeStats->systemId = GetNode()->GetId();
+
   m_nodeStats->invReceivedMessages = 0;
   m_nodeStats->invSentMessages = 0;
   m_nodeStats->invReceivedBytes = 0;
@@ -230,6 +233,9 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
 
   m_nodeStats->firstSpySuccess = 0;
   m_nodeStats->txReceived = 0;
+
+  m_nodeStats->systemId = m_systemId;
+
 
   if (m_protocol == FILTERS_ON_LINKS) {
     AnnounceFilters();

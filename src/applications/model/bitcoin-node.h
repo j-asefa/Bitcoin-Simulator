@@ -79,7 +79,7 @@ public:
    */
   void SetNodeStats(nodeStatistics *nodeStats);
 
-  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r);
+  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId);
 
 protected:
   virtual void DoDispose (void);           // inherited from Application base class.
@@ -173,6 +173,8 @@ protected:
   uint m_fixedTxTimeGeneration;
 
   int m_r; // incoming_inv_interval/outgoing_inv_interval;
+
+  int m_systemId;
 
   std::map<Ipv4Address, uint32_t> filters;
   std::map<Ipv4Address, ModeType> peersMode;

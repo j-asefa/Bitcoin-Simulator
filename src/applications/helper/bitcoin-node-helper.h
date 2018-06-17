@@ -105,7 +105,7 @@ public:
   void SetNodeInternetSpeeds (nodeInternetSpeeds &internetSpeeds);
 
   void SetNodeStats (nodeStatistics *nodeStats);
-  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups);
+  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId);
 
 protected:
   /**
@@ -127,6 +127,7 @@ protected:
   nodeStatistics                                      *m_nodeStats;           //!< The struct holding the node statistics
 
   uint64_t m_txToCreate;
+  int m_systemId;
 
   enum ProtocolType									  m_protocol;         //!< The protocol that the nodes use to advertise new blocks (DEFAULT: STANDARD)
   enum ModeType									              m_mode;

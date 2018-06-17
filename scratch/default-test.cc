@@ -41,6 +41,8 @@ void PrintBitcoinRegionStats (uint32_t *bitcoinNodesRegions, uint32_t totalNodes
 void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
    int systemId, int systemCount, int nodesInSystemId0, BitcoinTopologyHelper bitcoinTopologyHelper);
 int PoissonDistribution(int value);
+std::vector<int> generateTxCreateList(int n, int nodes);
+
 
 NS_LOG_COMPONENT_DEFINE ("MyMpiTest");
 
@@ -165,9 +167,9 @@ main (int argc, char *argv[])
 
   int startedblocksOnlyPrivateIpNodes;
 
-  int averageTxPerNode = txToCreate / totalNoNodes;
+  auto txCreateList = generateTxCreateList(txToCreate, totalNoNodes);
 
-  int txGenerator = 1;
+  std::map<int, int> nodeSystemIds;
 
   for(auto &node : nodesConnections)
   {
@@ -180,7 +182,8 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
 
-      bitcoinNodeHelper.SetProperties(PoissonDistribution(averageTxPerNode), ProtocolType(protocol), REGULAR, netGroups);
+      bitcoinNodeHelper.SetProperties(1, ProtocolType(protocol), REGULAR, netGroups, systemId);
+      // bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, netGroups);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 
@@ -209,11 +212,11 @@ main (int argc, char *argv[])
 
   #ifdef MPI_TEST
 
-    int            blocklen[14] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                   1, 1};
-    MPI_Aint       disp[14];
-    MPI_Datatype   dtypes[14] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
-                                 MPI_DOUBLE, MPI_INT};
+    int            blocklen[15] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                   1, 1, 1};
+    MPI_Aint       disp[15];
+    MPI_Datatype   dtypes[15] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
+                                 MPI_DOUBLE, MPI_INT, MPI_INT};
     MPI_Datatype   mpi_nodeStatisticsType;
 
     disp[0] = offsetof(nodeStatistics, nodeId);
@@ -230,8 +233,9 @@ main (int argc, char *argv[])
     disp[11] = offsetof(nodeStatistics, blocksRelayed);
     disp[12] = offsetof(nodeStatistics, firstSpySuccess);
     disp[13] = offsetof(nodeStatistics, txReceived);
+    disp[14] = offsetof(nodeStatistics, systemId);
 
-    MPI_Type_create_struct (14, blocklen, disp, dtypes, &mpi_nodeStatisticsType);
+    MPI_Type_create_struct (15, blocklen, disp, dtypes, &mpi_nodeStatisticsType);
     MPI_Type_commit (&mpi_nodeStatisticsType);
 
     if (systemId != 0 && systemCount > 1)
@@ -263,6 +267,7 @@ main (int argc, char *argv[])
         stats[recv.nodeId].getDataReceivedMessages = recv.getDataReceivedMessages;
         stats[recv.nodeId].firstSpySuccess = recv.firstSpySuccess;
         stats[recv.nodeId].txReceived = recv.txReceived;
+        stats[recv.nodeId].systemId = recv.systemId;
   	    count++;
       }
     }
@@ -343,9 +348,10 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     std::cout << "Connections = " << stats[it].connections << "\n";
     std::cout << "Transactions created = " << stats[it].txCreated << "\n";
     std::cout << "Inv sent = " << stats[it].invSentMessages << "\n";
-    std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
-    std::cout << "GetData sent = " << stats[it].getDataSentMessages << "\n";
+    // std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
+    // std::cout << "GetData sent = " << stats[it].getDataSentMessages << "\n";
     std::cout << "GetData received = " << stats[it].getDataReceivedMessages << "\n";
+    std::cout << "Tx received = " << stats[it].txReceived << "\n";
 
     double usefulInvSentRate = 0, usefulInvReceivedRate = 0, invSentMegabytes = 0;
     if (stats[it].invSentMessages != 0)
@@ -369,7 +375,6 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
 
     totalUsefulInvReceivedRate += usefulInvReceivedRate;
-
 
     for (int txCount = 0; txCount < stats[it].txReceived; txCount++)
     {
@@ -427,11 +432,11 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
   // std::cout << "Average useful inv sent rate (private IP nodes) = " << totalUsefulInvSentRatePrivateIPNode / (totalNodes - publicIPNodes) << "\n";
   // std::cout << "Average useful inv received rate (all) = " << totalUsefulInvReceivedRate / totalNodes << "\n";
 
-  if (publicIPNodes > 0) {
-    std::cout << "Average useful inv sent rate (public IP nodes) =" << totalUsefulInvSentRatePublicIPNode / publicIPNodes << "\n";
-    std::cout << "Average useless inv megabytes sent (public IP) = " << totaluselessInvSentMegabytesPublicIPNode / publicIPNodes << "\n";
-  }
-
+  // if (publicIPNodes > 0) {
+  //   std::cout << "Average useful inv sent rate (public IP nodes) =" << totalUsefulInvSentRatePublicIPNode / publicIPNodes << "\n";
+  //   std::cout << "Average useless inv megabytes sent (public IP) = " << totaluselessInvSentMegabytesPublicIPNode / publicIPNodes << "\n";
+  // }
+  //
 
 }
 
@@ -443,6 +448,24 @@ int PoissonDistribution(int value) {
     std::uniform_int_distribution<uint64_t>  distr(range_from, range_to);
     auto bigRand = distr(generator);
     return (int)(log1p(bigRand * -0.0000000000000035527136788 /* -1/2^48 */) * value * -1 + 0.5);
+}
+
+std::vector<int> generateTxCreateList(int n, int nodes) {
+  std::vector<int> result;
+  int averageTxPerNode = nodes / n;
+  int alreadyAssigned = 0;
+  for (int i = 0; i < nodes; i++) {
+    int txToCreate = PoissonDistribution(n);
+    result.push_back(txToCreate);
+    alreadyAssigned += txToCreate;
+    if (alreadyAssigned > n) {
+      result[i] -= (n - alreadyAssigned);
+      for (int j = i; j < nodes; j++)
+        result.push_back(0);
+      break;
+    }
+  }
+  return result;
 }
 
 
@@ -471,24 +494,29 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
       {
           for (int j = 0; j < stats[i].txReceived; j++) {
             MPI_Send(&stats[i].txReceivedTimes[j], 1, mpi_txRecvTime, 0, 9999, MPI_COMM_WORLD);
+            auto recv = stats[i].txReceivedTimes[j];
           }
       }
     }
   }
   else if (systemId == 0 && systemCount > 1)
   {
-    int count = nodesInSystemId0;
+    int count = 0;
     MPI_Status status;
     txRecvTime recv;
 
     while (count < totalNoNodes)
     {
+      if (stats[count].systemId == 0) {
+        count++;
+        continue;
+      }
       for (int j = 0; j < stats[count].txReceived; j++)
        {
           MPI_Recv(&recv, 1, mpi_txRecvTime, MPI_ANY_SOURCE, 9999, MPI_COMM_WORLD, &status);
           stats[recv.nodeId].txReceivedTimes.push_back(recv);
-          count++;
       }
+      count++;
     }
   }
 #endif

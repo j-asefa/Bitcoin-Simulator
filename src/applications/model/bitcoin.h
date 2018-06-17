@@ -66,6 +66,8 @@ typedef struct {
   double firstSpySuccess;
 
   int txReceived;
+  int systemId;
+
   std::vector<txRecvTime> txReceivedTimes;
 
 } nodeStatistics;
