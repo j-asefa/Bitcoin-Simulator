@@ -182,8 +182,8 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
 
-      bitcoinNodeHelper.SetProperties(1, ProtocolType(protocol), REGULAR, netGroups, systemId);
-      // bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, netGroups);
+      // bitcoinNodeHelper.SetProperties(1, ProtocolType(protocol), REGULAR, netGroups, systemId);
+      bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, netGroups, systemId);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 
@@ -452,19 +452,22 @@ int PoissonDistribution(int value) {
 
 std::vector<int> generateTxCreateList(int n, int nodes) {
   std::vector<int> result;
-  int averageTxPerNode = nodes / n;
+  int averageTxPerNode = n / nodes;
   int alreadyAssigned = 0;
-  for (int i = 0; i < nodes; i++) {
-    int txToCreate = PoissonDistribution(n);
+  for (int i = 0; i < nodes - 1; i++) {
+    int txToCreate = PoissonDistribution(averageTxPerNode);
     result.push_back(txToCreate);
     alreadyAssigned += txToCreate;
     if (alreadyAssigned > n) {
       result[i] -= (n - alreadyAssigned);
+      alreadyAssigned -= (n - alreadyAssigned);
       for (int j = i; j < nodes; j++)
         result.push_back(0);
       break;
     }
   }
+
+  result.push_back(std::max(0, n - alreadyAssigned));
   return result;
 }
 
