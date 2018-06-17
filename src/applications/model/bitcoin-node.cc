@@ -641,7 +641,7 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   if (m_protocol == FILTERS_ON_LINKS) {
     uint numberHash = std::hash<std::string>()(transactionHash);
     auto filterValue = filters[receiver];
-    if (filterValue != numberHash % 8)
+    if (hopNumber != 0 && filterValue != numberHash % 8)
       return;
   }
 
