@@ -459,14 +459,13 @@ std::vector<int> generateTxCreateList(int n, int nodes) {
     result.push_back(txToCreate);
     alreadyAssigned += txToCreate;
     if (alreadyAssigned > n) {
-      result[i] -= (n - alreadyAssigned);
-      alreadyAssigned -= (n - alreadyAssigned);
+      result[i] -= (alreadyAssigned - n);
+      alreadyAssigned -= (alreadyAssigned - n);
       for (int j = i; j < nodes; j++)
         result.push_back(0);
       break;
     }
   }
-
   result.push_back(std::max(0, n - alreadyAssigned));
   return result;
 }
