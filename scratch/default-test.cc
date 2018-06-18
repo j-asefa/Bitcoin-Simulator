@@ -166,10 +166,8 @@ main (int argc, char *argv[])
 
 
   int startedblocksOnlyPrivateIpNodes;
-
-  auto txCreateList = generateTxCreateList(txToCreate, totalNoNodes);
-
   std::map<int, int> nodeSystemIds;
+  auto txCreateList = generateTxCreateList(txToCreate, totalNoNodes);
 
   for(auto &node : nodesConnections)
   {
@@ -181,7 +179,6 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersDownloadSpeeds (peersDownloadSpeeds[node.first]);
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
-
       // bitcoinNodeHelper.SetProperties(1, ProtocolType(protocol), REGULAR, netGroups, systemId);
       bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, netGroups, systemId);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
@@ -458,14 +455,15 @@ std::vector<int> generateTxCreateList(int n, int nodes) {
     result.push_back(txToCreate);
     alreadyAssigned += txToCreate;
     if (alreadyAssigned > n) {
-      result[i] -= (alreadyAssigned - n);
-      alreadyAssigned -= (alreadyAssigned - n);
+      result[i] -= (n - alreadyAssigned);
       for (int j = i; j < nodes; j++)
         result.push_back(0);
       break;
     }
   }
-  result.push_back(std::max(0, n - alreadyAssigned));
+  result.push_back(n - alreadyAssigned);
+  for (int i = 0; i < nodes; i++)
+    std::cout << result[i] << std::endl;
   return result;
 }
 
