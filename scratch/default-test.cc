@@ -446,12 +446,13 @@ int PoissonDistribution(int value) {
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(0, INT_MAX);
     int bigRand = distribution(generator);
+
     return (int)(log1p(bigRand * -0.0000000000000035527136788 /* -1/2^48 */) * value * -1 + 0.5);
 }
 
 std::vector<int> generateTxCreateList(int n, int nodes) {
   std::vector<int> result;
-  int averageTxPerNode = n / nodes;
+  int averageTxPerNode = n / nodes + 1;
   int alreadyAssigned = 0;
   for (int i = 0; i < nodes - 1; i++) {
     int txToCreate = PoissonDistribution(averageTxPerNode);
@@ -465,8 +466,6 @@ std::vector<int> generateTxCreateList(int n, int nodes) {
     }
   }
   result.push_back(n - alreadyAssigned);
-  for (int i = 0; i < nodes; i++)
-    std::cout << result[i] << std::endl;
   return result;
 }
 
