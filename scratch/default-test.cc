@@ -437,12 +437,15 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 }
 
 int PoissonDistribution(int value) {
-    const uint64_t range_from  = 0;
-    const uint64_t range_to    = 1ULL << 48;
-    std::random_device                  rand_dev;
-    std::mt19937                        generator(rand_dev());
-    std::uniform_int_distribution<uint64_t>  distr(range_from, range_to);
-    auto bigRand = distr(generator);
+    // const uint64_t range_from  = 0;
+    // const uint64_t range_to    = 1ULL << 48;
+    // std::random_device                  rand_dev;
+    // std::mt19937                        generator(rand_dev());
+    // std::uniform_int_distribution<uint64_t>  distr(range_from, range_to);
+    // auto bigRand = distr(generator);
+    std::default_random_engine generator;
+    std::uniform_int_distribution<int> distribution(0, INT_MAX);
+    int bigRand = distribution(generator);
     return (int)(log1p(bigRand * -0.0000000000000035527136788 /* -1/2^48 */) * value * -1 + 0.5);
 }
 
