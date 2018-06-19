@@ -628,15 +628,12 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
 
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
-      auto delay = PoissonNextSend(invIntervalSeconds);
-	  if (m_protocol == FILTERS_ON_LINKS) {
-            //TODO: merge Gleb's proposed design. Also remove hardcoded value of 8 for numpeers.
-            if (m_peerFilters.at(*i) == (std::stoi(transactionHash, nullptr, 10) % 8)) {
-                  Simulator::Schedule(Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
-              }
-        } else {
-            Simulator::Schedule(Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
-        }
+      auto delay = 0;
+      if (count < 8)
+        delay = PoissonNextSend(invIntervalSeconds);
+      else
+        delay = PoissonNextSend(invIntervalSeconds * 2);
+      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
     }
   }
 }
