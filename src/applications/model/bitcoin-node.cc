@@ -283,6 +283,7 @@ BitcoinNode::AnnounceFilters (void)
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
+    m_peerFilters.insert(std::pair<Ipv4Address, uint16_t>(*i, count % 8));
     m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
     m_peersSockets[*i]->Send(delimiter, 1, 0);
   }
@@ -628,7 +629,14 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
       auto delay = PoissonNextSend(invIntervalSeconds);
-      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+	  if (m_protocol == FILTERS_ON_LINKS) {
+            //TODO: merge Gleb's proposed design. Also remove hardcoded value of 8 for numpeers.
+            if (m_peerFilters.at(*i) == (std::stoi(transactionHash, nullptr, 10) % 8)) {
+                  Simulator::Schedule(Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+              }
+        } else {
+            Simulator::Schedule(Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+        }
     }
   }
 }
