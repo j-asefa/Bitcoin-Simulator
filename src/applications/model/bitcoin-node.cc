@@ -643,7 +643,6 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
         delay = PoissonNextSendTo(invIntervalSeconds * m_r, netGroup);
         Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
       }
-      m_nodeStats->invSentMessages += 1;
     }
   }
 }
