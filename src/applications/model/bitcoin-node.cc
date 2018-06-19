@@ -135,7 +135,7 @@ BitcoinNode::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId)
+BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, int outConnections)
 {
   NS_LOG_FUNCTION (this);
   m_txToCreate = txToCreate;
@@ -146,6 +146,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_netGroups = netGroups;
   m_r = r;
   m_systemId = systemId;
+  m_outConnections = outConnections;
 }
 
 void
@@ -628,7 +629,7 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
       auto delay = 0;
-      if (count < 8)
+      if (count < m_outConnections)
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);
