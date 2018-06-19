@@ -114,7 +114,7 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
     {
   	  if (m_nodesConnections[i].size() < m_minConnections[i])
   	    std::cout << "Node " << i << " should have at least " << m_minConnections[i] << " connections but it has only " << m_nodesConnections[i].size() << " connections\n";
-			if (m_nodesConnections[i].size() < m_maxConnections[i])
+			if (m_nodesConnections[i].size() > m_maxConnections[i])
   	    std::cout << "Node " << i << " should have at most " << m_maxConnections[i] << " connections but it has " << m_nodesConnections[i].size() << " connections\n";
     }
 
