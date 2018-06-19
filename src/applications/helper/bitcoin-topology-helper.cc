@@ -59,6 +59,7 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
     nodes.push_back(i);
   }
 
+	std::vector<int> outgoingConnectionsCounters(m_totalNoNodes, 0);
 
   for(int i = 0; i < m_totalNoNodes; i++)
   {
@@ -71,45 +72,38 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
 
   for(int i = 0; i < m_totalNoNodes; i++)
   {
-		int count = 0;
-
-    while (m_nodesConnections[i].size() < m_minConnections[i] && count < 10*m_minConnections[i])
+    while (m_nodesConnections[i].size() < m_minConnections[i])
     {
       // Choose from publicIP nodes only
       uint32_t index = rand() % publicIPNodes;
-      // uint32_t index = rand() % nodes.size();
 	    uint32_t candidatePeer = nodes[index];
 
-      if (candidatePeer == i)
-      {
-   		  // if (m_systemId == 0)
-        //     std::cout << "Node " << i << " does not need a connection with itself" << "\n";
-      }
-      else if (std::find(m_nodesConnections[i].begin(), m_nodesConnections[i].end(), candidatePeer) != m_nodesConnections[i].end())
-      {
-   		  // if (m_systemId == 0)
-        //     std::cout << "Node " << i << " has already a connection to Node " << nodes[index] << "\n";
-      }
-      else if (m_nodesConnections[candidatePeer].size() >= m_maxConnections[candidatePeer])
-      {
- 		     // if (m_systemId == 0)
-         //    std::cout << "Node " << nodes[index] << " has already " << m_maxConnections[candidatePeer] << " connections" << "\n";
-      }
-      else
-      {
-        m_nodesConnections[i].push_back(candidatePeer);
-        m_nodesConnections[candidatePeer].push_back(i);
-
-        if (m_nodesConnections[candidatePeer].size() == m_maxConnections[candidatePeer])
-        {
-/* 		  if (m_systemId == 0)
-            std::cout << "Node " << nodes[index] << " is removed from index\n"; */
-          nodes.erase(nodes.begin() + index);
-        }
-      }
-      count++;
+			if (candidatePeer == i ||
+					std::find(m_nodesConnections[i].begin(), m_nodesConnections[i].end(), candidatePeer) != m_nodesConnections[i].end() ||
+					m_nodesConnections[candidatePeer].size() >= m_maxConnections[candidatePeer])  {
+						continue;
+			}
+      m_nodesConnections[i].insert(m_nodesConnections[i].begin(), candidatePeer);
+      m_nodesConnections[candidatePeer].push_back(i);
+			outgoingConnectionsCounters[i]++;
 	   }
   }
+
+	// Fill outgoing connections to 8
+	for (int i = 0; i < m_totalNoNodes; i++) {
+		while (outgoingConnectionsCounters[i] < m_minConnections[i]) {
+			uint32_t index = rand() % publicIPNodes;
+			uint32_t candidatePeer = nodes[index];
+			if (candidatePeer == i ||
+					std::find(m_nodesConnections[i].begin(), m_nodesConnections[i].end(), candidatePeer) != m_nodesConnections[i].end() ||
+					m_nodesConnections[candidatePeer].size() >= m_maxConnections[candidatePeer])  {
+						continue;
+			}
+			m_nodesConnections[i].insert(m_nodesConnections[i].begin(), candidatePeer);
+			m_nodesConnections[candidatePeer].push_back(i);
+			outgoingConnectionsCounters[i]++;
+		}
+	}
 
 
 
@@ -120,7 +114,10 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
     {
   	  if (m_nodesConnections[i].size() < m_minConnections[i])
   	    std::cout << "Node " << i << " should have at least " << m_minConnections[i] << " connections but it has only " << m_nodesConnections[i].size() << " connections\n";
+			if (m_nodesConnections[i].size() < m_maxConnections[i])
+  	    std::cout << "Node " << i << " should have at most " << m_maxConnections[i] << " connections but it has " << m_nodesConnections[i].size() << " connections\n";
     }
+
   }
 
   //Print the nodes' connections

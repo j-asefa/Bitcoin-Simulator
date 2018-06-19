@@ -627,7 +627,11 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
 
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
-      auto delay = PoissonNextSend(invIntervalSeconds);
+      auto delay = 0;
+      if (count < 8)
+        delay = PoissonNextSend(invIntervalSeconds);
+      else
+        delay = PoissonNextSend(invIntervalSeconds * 2);
       Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
     }
   }
