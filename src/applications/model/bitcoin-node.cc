@@ -627,8 +627,23 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
 
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
-      auto delay = PoissonNextSend(invIntervalSeconds);
-      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+      auto delay = 0;
+      if (peersMode[*i] == SPY) {
+        delay = invIntervalSeconds * 10;
+        for (int k = 0; k < m_netGroups; k++) {
+          delay = std::min(delay, PoissonNextSendTo(invIntervalSeconds * m_r, k));
+        }
+        Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+      } else if (count < 8) {
+        delay = PoissonNextSend(invIntervalSeconds);
+        Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+        count++;
+      } else {
+        auto netGroup = MurmurHash3Mixer(i->Get()) % m_netGroups;
+        delay = PoissonNextSendTo(invIntervalSeconds * m_r, netGroup);
+        Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+      }
+      m_nodeStats->invSentMessages += 1;
     }
   }
 }
