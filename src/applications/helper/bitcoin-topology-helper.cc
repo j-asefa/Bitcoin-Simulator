@@ -77,13 +77,6 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
 		}
   }
 
-	// Simulation for poisson PR
-	for (int j = 1; j < m_totalNoNodes; j++) {
-		uint32_t candidatePeer = nodes[j];
-		m_nodesConnections[0].push_back(candidatePeer);
-		m_nodesConnections[candidatePeer].push_back(0);
-	}
-
 
   for(int i = 0; i < m_totalNoNodes; i++)
   {
