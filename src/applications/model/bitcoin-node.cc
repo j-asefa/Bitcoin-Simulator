@@ -292,6 +292,7 @@ BitcoinNode::AnnounceFilters (void)
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
+    m_peerFilters.insert(std::pair<Ipv4Address, uint16_t>(*i, count % 8));
     m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
     m_peersSockets[*i]->Send(delimiter, 1, 0);
 
