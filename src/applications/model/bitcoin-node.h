@@ -188,7 +188,6 @@ protected:
 
   std::map<std::string, std::vector<Ipv4Address>> peersKnowTx;
 
-  std::map<Ipv4Address, uint16_t>                     m_peerFilters;                    //!< The outgoing filter in use for a given peer
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers
   std::map<Ipv4Address, double>                       m_peersDownloadSpeeds;            //!< The peersDownloadSpeeds of channels
   std::map<Ipv4Address, double>                       m_peersUploadSpeeds;              //!< The peersUploadSpeeds of channels
