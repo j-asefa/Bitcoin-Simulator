@@ -69,8 +69,7 @@ main (int argc, char *argv[])
   uint64_t txToCreate = 1024;
   int publicIPNodes, blocksOnlyPrivateIpNodes;
 
-  double stop;
-
+  double stop, overlap;
 
 //
   Ipv4InterfaceContainer                               ipv4InterfaceContainer;
@@ -97,6 +96,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("txToCreate", "The number of transactions each the network should generate", txToCreate);
 
   cmd.AddValue ("publicIPNodes", "How many nodes has public IP", publicIPNodes);
+  cmd.AddValue ("overlap", "Percentage of filter space shared with peer. Should be a number between 0 and 1", overlap);
 
   cmd.AddValue ("blocksOnlyPrivateIPNodes", "How many nodes with private IP run blocksOnly", blocksOnlyPrivateIpNodes);
 
@@ -181,9 +181,9 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
       if (targetNode->GetId() == 0)
-        bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), SPY, netGroups, systemId, 0);
+        bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), SPY, overlap, netGroups, systemId, 0);
       else
-        bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, netGroups, systemId, minConnectionsPerNode);
+        bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, overlap, netGroups, systemId, minConnectionsPerNode);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 

@@ -119,10 +119,11 @@ BitcoinNodeHelper::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId, int minConnectionsPerNode)
+BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, double overlap, int netGroups, int systemId, int minConnectionsPerNode)
 {
   m_txToCreate = txToCreate;
   m_protocol = protocol;
+  m_overlap = overlap;
   m_mode = mode;
   m_netGroups = netGroups;
   m_systemId = systemId;

@@ -269,7 +269,9 @@ void
 BitcoinNode::AnnounceFilters (void)
 {
   const uint8_t delimiter[] = "#";
-  int count = 0;
+  uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
+  uint32_t from = 0;
+  uint32_t to = filterLength - 1;
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
     rapidjson::Document filterData;
@@ -277,15 +279,24 @@ BitcoinNode::AnnounceFilters (void)
     value = FILTER;
     filterData.SetObject();
     filterData.AddMember("message", value, filterData.GetAllocator());
-    rapidjson::Value filterValue;
-    filterValue.SetInt(count++ % 8);
-    filterData.AddMember("filter", filterValue, filterData.GetAllocator());
+
+    rapidjson::Value filterBegin;
+    rapidjson::Value filterEnd;
+
+    filterBegin.SetInt(from);
+    filterEnd.SetInt(to);
+
+    filterData.AddMember("filterBegin", filterBegin, filterData.GetAllocator());
+    filterData.AddMember("filterEnd", filterEnd, filterData.GetAllocator());
     rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
     m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
     m_peersSockets[*i]->Send(delimiter, 1, 0);
+
+    from += filterLength;
+    to += filterLength;
   }
 }
 
