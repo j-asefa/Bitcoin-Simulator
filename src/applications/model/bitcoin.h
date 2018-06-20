@@ -59,7 +59,7 @@ typedef struct {
   long     getDataSentBytes;
   long     getDataReceivedMessages;
   long     getDataSentMessages;
-  long txCreated;
+  long     txCreated;
   int      connections;
 
   int      blocksRelayed;
@@ -69,15 +69,16 @@ typedef struct {
   int systemId;
 
   std::vector<txRecvTime> txReceivedTimes;
-
+  int ignoredFilters;
 } nodeStatistics;
-
 
 
 typedef struct {
   double downloadSpeed;
   double uploadSpeed;
 } nodeInternetSpeeds;
+
+#define FILTER_BASE_NUMBERING 1000
 
 }// Namespace ns3
 

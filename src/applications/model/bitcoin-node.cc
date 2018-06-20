@@ -135,7 +135,7 @@ BitcoinNode::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId)
+BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, int outConnections)
 {
   NS_LOG_FUNCTION (this);
   m_txToCreate = txToCreate;
@@ -146,6 +146,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_netGroups = netGroups;
   m_r = r;
   m_systemId = systemId;
+  m_outConnections = outConnections;
 }
 
 void
@@ -268,7 +269,9 @@ void
 BitcoinNode::AnnounceFilters (void)
 {
   const uint8_t delimiter[] = "#";
-  int count = 0;
+  uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
+  uint32_t from = 0;
+  uint32_t to = filterLength - 1;
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
     rapidjson::Document filterData;
@@ -276,16 +279,24 @@ BitcoinNode::AnnounceFilters (void)
     value = FILTER;
     filterData.SetObject();
     filterData.AddMember("message", value, filterData.GetAllocator());
-    rapidjson::Value filterValue;
-    filterValue.SetInt(count++ % 8);
-    filterData.AddMember("filter", filterValue, filterData.GetAllocator());
+
+    rapidjson::Value filterBegin;
+    rapidjson::Value filterEnd;
+
+    filterBegin.SetInt(from);
+    filterEnd.SetInt(to);
+
+    filterData.AddMember("filterBegin", filterBegin, filterData.GetAllocator());
+    filterData.AddMember("filterEnd", filterEnd, filterData.GetAllocator());
     rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
-    m_peerFilters.insert(std::pair<Ipv4Address, uint16_t>(*i, count % 8));
     m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
     m_peersSockets[*i]->Send(delimiter, 1, 0);
+
+    from += filterLength;
+    to += filterLength;
   }
 }
 
@@ -629,7 +640,7 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
       auto delay = 0;
-      if (count < 8)
+      if (count < m_outConnections)
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);

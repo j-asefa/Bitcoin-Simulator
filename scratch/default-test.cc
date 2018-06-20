@@ -70,8 +70,7 @@ main (int argc, char *argv[])
   uint64_t txToCreate = 1024;
   int publicIPNodes, blocksOnlyPrivateIpNodes;
 
-  double stop;
-
+  double stop, overlap;
 
 //
   Ipv4InterfaceContainer                               ipv4InterfaceContainer;
@@ -98,6 +97,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("txToCreate", "The number of transactions each the network should generate", txToCreate);
 
   cmd.AddValue ("publicIPNodes", "How many nodes has public IP", publicIPNodes);
+  cmd.AddValue ("overlap", "Percentage of filter space shared with peer. Should be a number between 0 and 1", overlap);
 
   cmd.AddValue ("blocksOnlyPrivateIPNodes", "How many nodes with private IP run blocksOnly", blocksOnlyPrivateIpNodes);
 
@@ -167,6 +167,7 @@ main (int argc, char *argv[])
 
 
   int startedblocksOnlyPrivateIpNodes;
+
   std::map<int, int> nodeSystemIds;
   auto txCreateList = generateTxCreateList(txToCreate, totalNoNodes);
 
@@ -180,8 +181,10 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersDownloadSpeeds (peersDownloadSpeeds[node.first]);
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
-      // bitcoinNodeHelper.SetProperties(1, ProtocolType(protocol), REGULAR, netGroups, systemId);
-      bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, netGroups, systemId);
+      if (targetNode->GetId() == 0)
+        bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), SPY, overlap, netGroups, systemId, 0);
+      else
+        bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, overlap, netGroups, systemId, minConnectionsPerNode);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 
@@ -210,11 +213,11 @@ main (int argc, char *argv[])
 
   #ifdef MPI_TEST
 
-    int            blocklen[15] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                   1, 1, 1};
-    MPI_Aint       disp[15];
-    MPI_Datatype   dtypes[15] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
-                                 MPI_DOUBLE, MPI_INT, MPI_INT};
+    int            blocklen[16] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                   1, 1, 1, 1};
+    MPI_Aint       disp[16];
+    MPI_Datatype   dtypes[16] = {MPI_INT, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_LONG, MPI_INT, MPI_INT,
+                                 MPI_DOUBLE, MPI_INT, MPI_INT, MPI_INT};
     MPI_Datatype   mpi_nodeStatisticsType;
 
     disp[0] = offsetof(nodeStatistics, nodeId);
@@ -232,6 +235,7 @@ main (int argc, char *argv[])
     disp[12] = offsetof(nodeStatistics, firstSpySuccess);
     disp[13] = offsetof(nodeStatistics, txReceived);
     disp[14] = offsetof(nodeStatistics, systemId);
+    disp[14] = offsetof(nodeStatistics, ignoredFilters);
 
     MPI_Type_create_struct (15, blocklen, disp, dtypes, &mpi_nodeStatisticsType);
     MPI_Type_commit (&mpi_nodeStatisticsType);
@@ -262,10 +266,12 @@ main (int argc, char *argv[])
         stats[recv.nodeId].connections = recv.connections;
         stats[recv.nodeId].txCreated = recv.txCreated;
         stats[recv.nodeId].invSentMessages = recv.invSentMessages;
+        stats[recv.nodeId].invReceivedMessages = recv.invReceivedMessages;
         stats[recv.nodeId].getDataReceivedMessages = recv.getDataReceivedMessages;
         stats[recv.nodeId].firstSpySuccess = recv.firstSpySuccess;
         stats[recv.nodeId].txReceived = recv.txReceived;
         stats[recv.nodeId].systemId = recv.systemId;
+        stats[recv.nodeId].ignoredFilters = recv.ignoredFilters;
   	    count++;
       }
     }
@@ -340,16 +346,20 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
   std::map<int, std::vector<double>> allTxRelayTimes;
 
+  int ignoredFilters = 0;
+
   for (int it = 0; it < totalNodes; it++ )
   {
     std::cout << "\nNode " << stats[it].nodeId << " statistics:\n";
     std::cout << "Connections = " << stats[it].connections << "\n";
     std::cout << "Transactions created = " << stats[it].txCreated << "\n";
     std::cout << "Inv sent = " << stats[it].invSentMessages << "\n";
-    // std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
+    std::cout << "Inv received = " << stats[it].invReceivedMessages << "\n";
     // std::cout << "GetData sent = " << stats[it].getDataSentMessages << "\n";
     std::cout << "GetData received = " << stats[it].getDataReceivedMessages << "\n";
     std::cout << "Tx received = " << stats[it].txReceived << "\n";
+
+    ignoredFilters += stats[it].ignoredFilters;
 
     double usefulInvSentRate = 0, usefulInvReceivedRate = 0, invSentMegabytes = 0;
     if (stats[it].invSentMessages != 0)
@@ -419,13 +429,13 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     fullRelayTimes.push_back(relayTimes.back() - relayTimes.front());
   }
 
-  std::cout << "Average 50% relay time: " << accumulate(fiftyPercentRelayTimes.begin(), fiftyPercentRelayTimes.end(), 0.0) / fiftyPercentRelayTimes.size() << "\n";
-  std::cout << "Average 75% relay time: " << accumulate(seventyFivePercentRelayTimes.begin(), seventyFivePercentRelayTimes.end(), 0.0) / seventyFivePercentRelayTimes.size() << "\n";
-  std::cout << "Average 99% relay time: " << accumulate(ninetyNinePercentRelayTimes.begin(), ninetyNinePercentRelayTimes.end(), 0.0) / ninetyNinePercentRelayTimes.size() << "\n";
-  std::cout << "Average 100% relay time: " << accumulate(fullRelayTimes.begin(), fullRelayTimes.end(), 0.0) / fullRelayTimes.size() << "\n";
+  std::cout << "Average 50% relay time: " << accumulate(fiftyPercentRelayTimes.begin(), fiftyPercentRelayTimes.end(), 0.0) / fiftyPercentRelayTimes.size() << ", txs: " << fiftyPercentRelayTimes.size() << "\n";
+  std::cout << "Average 75% relay time: " << accumulate(seventyFivePercentRelayTimes.begin(), seventyFivePercentRelayTimes.end(), 0.0) / seventyFivePercentRelayTimes.size() << ", txs: " << seventyFivePercentRelayTimes.size() << "\n";
+  std::cout << "Average 99% relay time: " << accumulate(ninetyNinePercentRelayTimes.begin(), ninetyNinePercentRelayTimes.end(), 0.0) / ninetyNinePercentRelayTimes.size() << ", txs: " << ninetyNinePercentRelayTimes.size() << "\n";
+  std::cout << "Average 100% relay time: " << accumulate(fullRelayTimes.begin(), fullRelayTimes.end(), 0.0) / fullRelayTimes.size() << ", txs: " << fullRelayTimes.size() << "\n";
   std::cout << "Generated transactions: " << allTxRelayTimes.size() << "\n";
-  std::cout << "Fully relayed transactions: " << fullRelayTimes.size() << "\n";
 
+  std::cout << "Average ignore filters messages: " << ignoredFilters*1.0 / totalNodes  << "\n";
 
   // std::cout << "Average useful inv sent rate (private IP nodes) = " << totalUsefulInvSentRatePrivateIPNode / (totalNodes - publicIPNodes) << "\n";
   // std::cout << "Average useful inv received rate (all) = " << totalUsefulInvReceivedRate / totalNodes << "\n";
@@ -434,6 +444,7 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     std::cout << "Average useful inv sent rate (public IP nodes) =" << totalUsefulInvSentRatePublicIPNode / publicIPNodes << "\n";
     std::cout << "Average useless inv megabytes sent (public IP) = " << totaluselessInvSentMegabytesPublicIPNode / publicIPNodes << "\n";
   }
+
 
 }
 
@@ -447,12 +458,13 @@ int PoissonDistribution(int value) {
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(0, INT_MAX);
     int bigRand = distribution(generator);
+
     return (int)(log1p(bigRand * -0.0000000000000035527136788 /* -1/2^48 */) * value * -1 + 0.5);
 }
 
 std::vector<int> generateTxCreateList(int n, int nodes) {
   std::vector<int> result;
-  int averageTxPerNode = n / nodes;
+  int averageTxPerNode = std::max(n / nodes, 1);
   int alreadyAssigned = 0;
   for (int i = 0; i < nodes - 1; i++) {
     int txToCreate = PoissonDistribution(averageTxPerNode);
@@ -466,8 +478,6 @@ std::vector<int> generateTxCreateList(int n, int nodes) {
     }
   }
   result.push_back(n - alreadyAssigned);
-  for (int i = 0; i < nodes; i++)
-    std::cout << result[i] << std::endl;
   return result;
 }
 

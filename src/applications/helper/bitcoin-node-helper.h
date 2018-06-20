@@ -105,7 +105,7 @@ public:
   void SetNodeInternetSpeeds (nodeInternetSpeeds &internetSpeeds);
 
   void SetNodeStats (nodeStatistics *nodeStats);
-  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId);
+  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, double overlap, int netGroups, int systemId, int minConnectionsPerNode);
 
 protected:
   /**
@@ -128,11 +128,12 @@ protected:
 
   uint64_t m_txToCreate;
   int m_systemId;
-
-  enum ProtocolType									  m_protocol;         //!< The protocol that the nodes use to advertise new blocks (DEFAULT: STANDARD)
+  double overlap;                                                             //!< The percentage of the filter space shared with a peer
+  enum ProtocolType									          m_protocol;         //!< The protocol that the nodes use to advertise new blocks (DEFAULT: STANDARD)
   enum ModeType									              m_mode;
   int m_netGroups;
   int m_r;  // incoming_inv_interval/outgoing_inv_interval;
+  int m_minConnectionsPerNode;
 };
 
 } // namespace ns3
