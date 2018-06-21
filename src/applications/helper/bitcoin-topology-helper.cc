@@ -104,7 +104,7 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
   }
 
 	// Fill outgoing connections to 8
-	for (int i = 0; i < m_totalNoNodes; i++) {
+	for (int i = 1; i < m_totalNoNodes; i++) {
 		while (outgoingConnectionsCounters[i] < m_minConnections[i]) {
 			uint32_t index = rand() % publicIPNodes;
 			uint32_t candidatePeer = nodes[index];
