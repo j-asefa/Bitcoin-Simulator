@@ -286,6 +286,17 @@ BitcoinTopologyHelper::AssignIpv4Addresses (Ipv4AddressHelperCustom ip)
 	m_nodesConnectionsIps[node1].push_back(interfaceAddress2);
 	m_nodesConnectionsIps[node2].push_back(interfaceAddress1);
 
+	for (int i = 0; i < m_minConnections[node1]; i++) {
+		if (m_nodesConnections[node1][i] == node2)
+			m_nodesOutConnectionsIps[node1].push_back(interfaceAddress2);
+	}
+
+	for (int i = 0; i < m_minConnections[node2]; i++) {
+		if (m_nodesConnections[node2][i] == node1)
+			m_nodesOutConnectionsIps[node2].push_back(interfaceAddress1);
+	}
+
+
     ip.NewNetwork ();
 
     m_interfaces.push_back (newInterfaces);
@@ -348,6 +359,13 @@ BitcoinTopologyHelper::GetPeersUploadSpeeds (void) const
 {
   return m_peersUploadSpeeds;
 }
+
+std::vector<Ipv4Address>
+BitcoinTopologyHelper::GetPeersOutConnections (uint32_t nodeId) const
+{
+	return m_nodesOutConnectionsIps.at(nodeId);
+}
+
 
 
 std::map<uint32_t, nodeInternetSpeeds>
