@@ -105,7 +105,8 @@ public:
   void SetNodeInternetSpeeds (nodeInternetSpeeds &internetSpeeds);
 
   void SetNodeStats (nodeStatistics *nodeStats);
-  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId);
+  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId,
+    std::vector<Ipv4Address> outPeers);
 
 protected:
   /**
@@ -126,6 +127,8 @@ protected:
   nodeInternetSpeeds                                  m_internetSpeeds;       //!< The internet speeds of the node
   nodeStatistics                                      *m_nodeStats;           //!< The struct holding the node statistics
 
+
+  std::vector<Ipv4Address> m_outPeers;
   uint64_t m_txToCreate;
   int m_systemId;
 
