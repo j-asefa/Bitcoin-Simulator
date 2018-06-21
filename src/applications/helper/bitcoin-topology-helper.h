@@ -147,7 +147,6 @@ private:
 
   std::map<uint32_t, std::vector<uint32_t>>       m_nodesConnections;        //!< key = nodeId
   std::map<uint32_t, std::vector<Ipv4Address>>    m_nodesConnectionsIps;     //!< key = nodeId
-  std::map<uint32_t, std::vector<Ipv4Address>>    m_nodesOutConnectionsIps;     //!< key = nodeId
 
   std::vector<NodeContainer>                      m_nodes;                   //!< all the nodes in the network
   std::vector<NetDeviceContainer>                 m_devices;                 //!< NetDevices in the network
