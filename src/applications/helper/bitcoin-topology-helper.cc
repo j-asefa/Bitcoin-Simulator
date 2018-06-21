@@ -345,7 +345,7 @@ BitcoinTopologyHelper::GetPeersUploadSpeeds (void) const
 std::vector<Ipv4Address>
 BitcoinTopologyHelper::GetPeersOutConnections (uint32_t nodeId) const
 {
-	return m_nodesConnectionsIps.at(nodeId);
+	return std::vector<Ipv4Address>(m_nodesConnectionsIps.at(nodeId).begin(), m_nodesConnectionsIps.at(nodeId).begin()+m_minConnections.at(nodeId));
 }
 
 
