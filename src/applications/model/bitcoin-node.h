@@ -114,6 +114,7 @@ protected:
 
 
   void AnnounceFilters(void);
+  bool ValidateFilters(void);
   void AnnounceMode(void);
 
   void ScheduleNextTransactionEvent(void);
@@ -175,7 +176,8 @@ protected:
 
   int m_systemId;
 
-  std::map<Ipv4Address, uint32_t> filters;
+  std::map<Ipv4Address, uint32_t> filterBegin;        //!< The start of the filter for each peer
+  std::map<Ipv4Address, uint32_t> filterEnd;          //!< The end of the filter for each peer
   std::map<Ipv4Address, ModeType> peersMode;
 
   uint lastTxId;

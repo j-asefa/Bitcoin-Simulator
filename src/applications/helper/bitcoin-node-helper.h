@@ -128,7 +128,7 @@ protected:
 
   uint64_t m_txToCreate;
   int m_systemId;
-  double overlap;                                                             //!< The percentage of the filter space shared with a peer
+  double m_overlap;                                                             //!< The percentage of the filter space shared with a peer
   enum ProtocolType									          m_protocol;         //!< The protocol that the nodes use to advertise new blocks (DEFAULT: STANDARD)
   enum ModeType									              m_mode;
   int m_netGroups;

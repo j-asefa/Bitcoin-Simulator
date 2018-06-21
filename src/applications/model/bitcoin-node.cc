@@ -240,6 +240,8 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
 
   if (m_protocol == FILTERS_ON_LINKS) {
     AnnounceFilters();
+    //TODO: while at least one filter is not valid, send request to a peer for an expanded/new filter
+    //ValidateFilters(); 
   }
   AnnounceMode();
 
@@ -298,6 +300,22 @@ BitcoinNode::AnnounceFilters (void)
     from += filterLength;
     to += filterLength;
   }
+}
+
+bool
+BitcoinNode::ValidateFilters(void) {
+  uint32_t countBegin = 0;
+  uint32_t countEnd = 0;
+  uint32_t previousEnd = 0; 
+  for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i) {
+    // identify gaps in the filters
+    countBegin  = filterBegin[*i];
+    previousEnd = countEnd;
+    if (previousEnd != countBegin)
+        return false;
+    countEnd = filterEnd[*i];
+  }
+  return true;
 }
 
 void
@@ -523,8 +541,10 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
           {
             case FILTER:
             {
-              uint32_t filter = d["filter"].GetInt();
-              filters[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filter;
+              uint32_t filterBegin = d["filterBegin"].GetInt();
+              uint32_t filterEnd   = d["filterEnd"].GetInt();
+              filterBegin[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filterBegin;
+              filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filterEnd;
               break;
             }
             case MODE:
