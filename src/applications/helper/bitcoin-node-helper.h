@@ -105,7 +105,8 @@ public:
   void SetNodeInternetSpeeds (nodeInternetSpeeds &internetSpeeds);
 
   void SetNodeStats (nodeStatistics *nodeStats);
-  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId, int minConnectionsPerNode);
+  void SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int systemId,
+    std::vector<Ipv4Address> outPeers);
 
 protected:
   /**
@@ -126,6 +127,8 @@ protected:
   nodeInternetSpeeds                                  m_internetSpeeds;       //!< The internet speeds of the node
   nodeStatistics                                      *m_nodeStats;           //!< The struct holding the node statistics
 
+
+  std::vector<Ipv4Address> m_outPeers;
   uint64_t m_txToCreate;
   int m_systemId;
 
@@ -133,7 +136,6 @@ protected:
   enum ModeType									              m_mode;
   int m_netGroups;
   int m_r;  // incoming_inv_interval/outgoing_inv_interval;
-  int m_minConnectionsPerNode;
 };
 
 } // namespace ns3

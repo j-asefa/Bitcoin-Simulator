@@ -125,6 +125,8 @@ public:
 
    std::map<uint32_t, std::vector<Ipv4Address>> GetNodesConnectionsIps (void) const;
 
+   std::vector<Ipv4Address> GetPeersOutConnections (uint32_t nodeId) const;
+
 
    std::map<uint32_t, std::map<Ipv4Address, double>> GetPeersDownloadSpeeds(void) const;
    std::map<uint32_t, std::map<Ipv4Address, double>> GetPeersUploadSpeeds(void) const;
@@ -145,6 +147,8 @@ private:
 
   std::map<uint32_t, std::vector<uint32_t>>       m_nodesConnections;        //!< key = nodeId
   std::map<uint32_t, std::vector<Ipv4Address>>    m_nodesConnectionsIps;     //!< key = nodeId
+  std::map<uint32_t, std::vector<Ipv4Address>>    m_nodesOutConnectionsIps;     //!< key = nodeId
+
   std::vector<NodeContainer>                      m_nodes;                   //!< all the nodes in the network
   std::vector<NetDeviceContainer>                 m_devices;                 //!< NetDevices in the network
   std::vector<Ipv4InterfaceContainer>             m_interfaces;              //!< IPv4 interfaces in the network
