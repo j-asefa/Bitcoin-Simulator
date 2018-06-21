@@ -181,10 +181,9 @@ main (int argc, char *argv[])
       bitcoinNodeHelper.SetPeersDownloadSpeeds (peersDownloadSpeeds[node.first]);
       bitcoinNodeHelper.SetPeersUploadSpeeds (peersUploadSpeeds[node.first]);
       bitcoinNodeHelper.SetNodeInternetSpeeds (nodesInternetSpeeds[node.first]);
-      if (targetNode->GetId() == 0)
-        bitcoinNodeHelper.SetProperties(0, ProtocolType(protocol), SPY, overlap, netGroups, systemId, 0);
-      else
-        bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, overlap, netGroups, systemId, minConnectionsPerNode);
+
+      auto outPeers = bitcoinTopologyHelper.GetPeersOutConnections(node.first);
+      bitcoinNodeHelper.SetProperties(txCreateList[targetNode->GetId()], ProtocolType(protocol), REGULAR, overlap, netGroups, systemId, outPeers);
   	  bitcoinNodeHelper.SetNodeStats (&stats[node.first]);
       bitcoinNodes.Add(bitcoinNodeHelper.Install (targetNode));
 

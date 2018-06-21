@@ -78,7 +78,7 @@ public:
    * \param nodeStats a reference to a nodeStatistics struct
    */
   void SetNodeStats(nodeStatistics *nodeStats);
-  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, int outConnections);
+  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, std::vector<Ipv4Address> outPeers);
 
 protected:
   virtual void DoDispose (void);           // inherited from Application base class.
@@ -215,7 +215,7 @@ protected:
   std::vector<int> firstTimeHops;
   bool txCreator;
 
-  int m_outConnections;
+  std::vector<Ipv4Address> m_outPeers;
 
   Address spy;
   uint64_t       m_txToCreate;

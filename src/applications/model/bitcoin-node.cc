@@ -135,7 +135,7 @@ BitcoinNode::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, int outConnections)
+BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, std::vector<Ipv4Address> outPeers)
 {
   NS_LOG_FUNCTION (this);
   m_txToCreate = txToCreate;
@@ -146,7 +146,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_netGroups = netGroups;
   m_r = r;
   m_systemId = systemId;
-  m_outConnections = outConnections;
+  m_outPeers = outPeers;
 }
 
 void
@@ -649,18 +649,16 @@ void
 BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber)
 {
   NS_LOG_FUNCTION (this);
-  int count = 0;
 
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
     // if (peersMode[*i] == BLOCKS_ONLY) {
     //   continue;
     // }
-
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
       auto delay = 0;
-      if (count < m_outConnections)
+      if (std::find(m_outPeers.begin(), m_outPeers.end(), *i) != m_outPeers.end())
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);

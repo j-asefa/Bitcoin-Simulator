@@ -80,7 +80,7 @@ BitcoinNodeHelper::InstallPriv (Ptr<Node> node)
   app->SetPeersUploadSpeeds(m_peersUploadSpeeds);
   app->SetNodeInternetSpeeds(m_internetSpeeds);
   app->SetNodeStats(m_nodeStats);
-  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_netGroups, m_r, m_systemId, m_minConnectionsPerNode);
+  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_netGroups, m_r, m_systemId, m_outPeers);
 
   node->AddApplication (app);
 
@@ -119,7 +119,8 @@ BitcoinNodeHelper::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, double overlap, int netGroups, int systemId, int minConnectionsPerNode)
+BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, double overlap, int netGroups, int systemId,
+    std::vector<Ipv4Address> outPeers)
 {
   m_txToCreate = txToCreate;
   m_protocol = protocol;
@@ -127,7 +128,7 @@ BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protoco
   m_mode = mode;
   m_netGroups = netGroups;
   m_systemId = systemId;
-  m_minConnectionsPerNode = minConnectionsPerNode;
+  m_outPeers = outPeers;
 }
 
 
