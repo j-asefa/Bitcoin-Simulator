@@ -234,6 +234,7 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
 
   m_nodeStats->firstSpySuccess = 0;
   m_nodeStats->txReceived = 0;
+  m_nodeStats->ignoredFilters = 0;
 
   m_nodeStats->systemId = m_systemId;
 
@@ -278,7 +279,8 @@ BitcoinNode::AnnounceFilters (void)
     filterData.SetObject();
     filterData.AddMember("message", value, filterData.GetAllocator());
     rapidjson::Value filterValue;
-    filterValue.SetInt(count++ % 8);
+    // filterValue.SetInt(count++ % 8);
+    filterValue.SetInt(GetNode()->GetId());
     filterData.AddMember("filter", filterValue, filterData.GetAllocator());
     rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
@@ -627,25 +629,54 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
     if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
     {
       auto delay = 0;
+      // delay = PoissonNextSend(invIntervalSeconds);
       if (std::find(m_outPeers.begin(), m_outPeers.end(), *i) != m_outPeers.end())
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);
-      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber, false);
     }
   }
 }
 
 void
-BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber) {
+BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber, bool ignoreFilters) {
   if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end())
     return;
 
-  if (m_protocol == FILTERS_ON_LINKS) {
+  if (m_protocol == FILTERS_ON_LINKS && ignoreFilters)
+    m_nodeStats->ignoredFilters++;
+
+  if (m_protocol == FILTERS_ON_LINKS && !ignoreFilters) {
     uint numberHash = std::hash<std::string>()(transactionHash);
     auto filterValue = filters[receiver];
-    if (hopNumber != 0 && filterValue != numberHash % 8)
+    // if (hopNumber != 0 && filterValue != numberHash % 8)
+    //   return;
+    auto hashedReceiverId = MurmurHash3Mixer(filterValue + 7) % 1000;
+    auto hashedNodeId = MurmurHash3Mixer(GetNode()->GetId() + 7) % 1000;
+    int product = MurmurHash3Mixer(hashedReceiverId * hashedNodeId * numberHash);
+    bool largerSendsEven = (product % 2) == 0;
+    bool evenHash = numberHash % 2 == 0;
+    bool shouldSend = true;
+    if (largerSendsEven) {
+      if (hashedNodeId > hashedReceiverId && !evenHash)
+        shouldSend = false;
+      if (hashedNodeId < hashedReceiverId && evenHash)
+        shouldSend = false;
+    } else {
+      if (hashedNodeId < hashedReceiverId && !evenHash)
+        shouldSend = false;
+      if (hashedNodeId > hashedReceiverId && evenHash)
+        shouldSend = false;
+    }
+    if (!shouldSend) {
+      // std::cout << "Not sending " << transactionHash << "from " << GetNode()->GetId() << " to " << filterValue << std::endl;
+      Simulator::Schedule (Seconds(invIntervalSeconds * 2), &BitcoinNode::SendInvToNode, this, receiver, transactionHash, hopNumber, true);
       return;
+    } else {
+      // std::cout << "Sending " << transactionHash << "from " << GetNode()->GetId() << " to " << filterValue << std::endl;
+    }
+
   }
 
   rapidjson::Document inv;

@@ -126,7 +126,7 @@ protected:
 
   void AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber);
 
-  void SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber);
+  void SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber, bool ignoreFilters = false);
 
   /**
    * \brief Sends a message to a peer
@@ -231,6 +231,8 @@ protected:
   TracedCallback<Ptr<const Packet>, const Address &> m_rxTrace;
 
 };
+
+int MurmurHash3Mixer(int key);
 
 } // namespace ns3
 
