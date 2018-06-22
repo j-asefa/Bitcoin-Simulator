@@ -241,10 +241,9 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
   if (m_protocol == FILTERS_ON_LINKS) {
     AnnounceFilters();
     //TODO: while at least one filter is not valid, send request to a peer for an expanded/new filter
-    //ValidateFilters(); 
+    //ValidateNodeFilters();
   }
   AnnounceMode();
-
 }
 
 void
@@ -302,20 +301,54 @@ BitcoinNode::AnnounceFilters (void)
   }
 }
 
-bool
-BitcoinNode::ValidateFilters(void) {
-  uint32_t countBegin = 0;
-  uint32_t countEnd = 0;
-  uint32_t previousEnd = 0; 
-  for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i) {
-    // identify gaps in the filters
-    countBegin  = filterBegin[*i];
-    previousEnd = countEnd;
-    if (previousEnd != countBegin)
-        return false;
-    countEnd = filterEnd[*i];
+/*
+ * Go through all the filters each peer announced to us and validate that it covers the full transaction range.
+ * If not, coordinate with the necessary peers to cover the tx space.
+ */
+void
+BitcoinNode::ValidateNodeFilters(void) {
+  uint32_t prevFilterEnd = 0;
+  map<uint32_t, uint32_t> filterRange;
+  map<uint32_t, Ipv4Address> invertedFilterBegin;
+  map<uint32_t, Ipv4Address> invertedFilterEnd;
+
+  for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); i++) {
+    filterRange.insert( std::pair<uint32_t, uint32_t>(filterBegin[*i], filterEnd[*i]));
+    invertedFilterBegin.insert( std::pair<uint32_t, Ipv4Address>(filterBegin[*i], i));
+    invertedFilterEnd.insert( std::pair<uint32_t, Ipv4Address>(filterEnd[*i], i));
   }
-  return true;
+
+  // Have to loop again, because the map keys are sorted now
+  for (std::map<uint32_t, uint32_t>::const_iterator it = filterRange.begin(); i != filterRange.end(); i++) {
+      if (prevFilterEnd < i->first) {
+        // Tell this peer to expand the beginning of its filter backwards to the prevFilterEnd
+        UpdateFilterBegin(invertedFilterBegin[i->first], prevFilterEnd);
+      } else if (i == filterRange.end() && invertedFilterEnd[i->second] < FILTER_BASE_NUMBERING - 1) {
+        /* 
+         * This is the peer with filter covering the end of the range. In this case, tell this peer to expand
+         * the end of the filter to the end of the range
+         */
+        UpdateFilterEnd(invertedFilterEnd[i->second], FILTER_BASE_NUMBERING - 1);
+      }
+      prevFilterEnd = i->second;
+  }
+}
+
+/*
+ * When we find a gap in a filter, by convention we'll ask the peer whose "filterBegin" value is > the "filterEnd" of the previous peer to decrease
+ * their filterBegin such that it equals the filterEnd of our previous peer.
+ * If this is our "last peer" then we ask them to expand their filterEnd to the end of the hash space. 
+ * So we send a JSON message (UPDATE_FILTER) to the peer with the desired filterBegin value, along with our Ipv4Address so they can look it up in their map.
+ * When the peer updates their filterBegin, they respond with a FILTER_UPDATED message, which confirms they made the change
+ */
+void
+BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
+    // construct and send UPDATE_FILTER_END message
+}
+
+void
+BitcoinNode::UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal) {
+    // construct and send UPDATE_FILTER_BEGIN message
 }
 
 void
@@ -552,6 +585,18 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
               ModeType mode = ModeType(d["mode"].GetInt());
               peersMode[InetSocketAddress::ConvertFrom(from).GetIpv4()] = mode;
               break;
+            }
+            case UPDATE_FILTER_BEGIN: 
+            {
+                break;
+            }
+            case UPDATE_FILTER_END:
+            {
+                break;
+            }
+            case FILTER_UPDATED:
+            {
+                break;
             }
             case INV:
             {

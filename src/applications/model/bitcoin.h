@@ -24,7 +24,10 @@ enum Messages
   TX,
   FILTER,
   MODE,
-  BLOCK
+  BLOCK,
+  UPDATE_FILTER_BEGIN,
+  UPDATE_FILTER_END,
+  FILTER_UPDATED
 };
 
 enum ProtocolType

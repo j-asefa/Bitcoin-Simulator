@@ -114,7 +114,9 @@ protected:
 
 
   void AnnounceFilters(void);
-  bool ValidateFilters(void);
+  void ValidateNodeFilters(void);
+  void UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal);
+  void UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal);
   void AnnounceMode(void);
 
   void ScheduleNextTransactionEvent(void);
