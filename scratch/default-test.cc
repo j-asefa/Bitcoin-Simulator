@@ -342,6 +342,9 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
   double totalUsefulInvReceivedRate = 0;
   double totaluselessInvSentMegabytesPublicIPNode = 0;
 
+  uint64_t totalInvSent = 0;
+  uint64_t totalGetDataReceived = 0;
+  uint64_t totalConnections = 0;
   std::map<int, std::vector<double>> allTxRelayTimes;
 
   int ignoredFilters = 0;
@@ -358,6 +361,9 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     std::cout << "Tx received = " << stats[it].txReceived << "\n";
 
     ignoredFilters += stats[it].ignoredFilters;
+    totalInvSent += stats[it].invSentMessages;
+    totalGetDataReceived += stats[it].getDataReceivedMessages;
+    totalConnections += stats[it].connections;
 
     double usefulInvSentRate = 0, usefulInvReceivedRate = 0, invSentMegabytes = 0;
     if (stats[it].invSentMessages != 0)
@@ -433,14 +439,21 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
   std::cout << "Average 100% relay time: " << accumulate(fullRelayTimes.begin(), fullRelayTimes.end(), 0.0) / fullRelayTimes.size() << ", txs: " << fullRelayTimes.size() << "\n";
   std::cout << "Generated transactions: " << allTxRelayTimes.size() << "\n";
 
+  auto exptectedInvSent = totalConnections / 2 * txToCreate;
   std::cout << "Average ignore filters messages: " << ignoredFilters*1.0 / totalNodes  << "\n";
+  std::cout << "Expected inv sent: " << exptectedInvSent << "\n";
+  std::cout << "Total inv sent: " << totalInvSent  << "\n";
+  std::cout << "Total getdata received: " << totalGetDataReceived  << "\n";
+
+  std::cout << "Unexpected inv fraction sent: " << (totalInvSent - exptectedInvSent) * 1.0 / exptectedInvSent  << "\n";
+
 
   // std::cout << "Average useful inv sent rate (private IP nodes) = " << totalUsefulInvSentRatePrivateIPNode / (totalNodes - publicIPNodes) << "\n";
   // std::cout << "Average useful inv received rate (all) = " << totalUsefulInvReceivedRate / totalNodes << "\n";
 
   if (publicIPNodes > 0) {
     std::cout << "Average useful inv sent rate (public IP nodes) =" << totalUsefulInvSentRatePublicIPNode / publicIPNodes << "\n";
-    std::cout << "Average useless inv megabytes sent (public IP) = " << totaluselessInvSentMegabytesPublicIPNode / publicIPNodes << "\n";
+    std::cout << "Optimal useful inv sent rate (public IP nodes) =" << totalGetDataReceived * 1.0 / exptectedInvSent << "\n";
   }
 
 
