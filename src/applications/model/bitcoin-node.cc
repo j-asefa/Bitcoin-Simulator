@@ -289,6 +289,7 @@ BitcoinNode::AnnounceFilters (void)
 
     filterData.AddMember("filterBegin", filterBegin, filterData.GetAllocator());
     filterData.AddMember("filterEnd", filterEnd, filterData.GetAllocator());
+
     rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
@@ -334,21 +335,58 @@ BitcoinNode::ValidateNodeFilters(void) {
   }
 }
 
-/*
- * When we find a gap in a filter, by convention we'll ask the peer whose "filterBegin" value is > the "filterEnd" of the previous peer to decrease
- * their filterBegin such that it equals the filterEnd of our previous peer.
- * If this is our "last peer" then we ask them to expand their filterEnd to the end of the hash space. 
- * So we send a JSON message (UPDATE_FILTER) to the peer with the desired filterBegin value, along with our Ipv4Address so they can look it up in their map.
- * When the peer updates their filterBegin, they respond with a FILTER_UPDATED message, which confirms they made the change
+
+
+/* 
+ * Construct and send UPDATE_FILTER_BEGIN message
  */
 void
 BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
-    // construct and send UPDATE_FILTER_END message
+    rapidjson::Document filterData;
+
+    rapidjson::Value value;
+    value = UPDATE_FILTER_BEGIN;
+    filterData.SetObject();
+
+    filterData.AddMember("message", value, filterData.GetAllocator());
+
+    rapidjson::Value newFilterBegin;
+    newFilterBegin.SetInt(newVal);
+
+    filterData.AddMember("newFilterBegin", newFilterBegin, filterData.GetAllocator());
+    
+    rapidjson::StringBuffer filterInfo;
+    rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
+    filterData.Accept(filterWriter);
+
+    m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
+    m_peersSockets[*i]->Send(delimiter, 1, 0);
 }
 
+/*
+ * Construct and send UPDATE_FILTER_END message
+ */
 void
 BitcoinNode::UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal) {
-    // construct and send UPDATE_FILTER_BEGIN message
+    rapidjson::Document filterData;
+
+    rapidjson::Value value;
+    value = UPDATE_FILTER_END;
+    filterData.SetObject();
+
+    filterData.AddMember("message", value, filterData.GetAllocator());
+
+    rapidjson::Value newFilterEnd;
+    newFilterBegin.SetInt(newVal);
+
+    filterData.AddMember("newFilterEnd", newFilterEnd, filterData.GetAllocator());
+    
+    rapidjson::StringBuffer filterInfo;
+    rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
+    filterData.Accept(filterWriter);
+
+    m_peersSockets[*i]->Send(reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
+    m_peersSockets[*i]->Send(delimiter, 1, 0);
 }
 
 void
@@ -588,10 +626,12 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
             }
             case UPDATE_FILTER_BEGIN: 
             {
+                //TODO: update corresponding filter begin
                 break;
             }
             case UPDATE_FILTER_END:
             {
+                //TODO: update corresponding filter end
                 break;
             }
             case FILTER_UPDATED:
