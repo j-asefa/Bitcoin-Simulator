@@ -626,16 +626,12 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
             }
             case UPDATE_FILTER_BEGIN: 
             {
-                //TODO: update corresponding filter begin
+                filterBegin[InetSocketAddress::ConvertFrom(from).GetIpv4()] = newFilterBegin;
                 break;
             }
             case UPDATE_FILTER_END:
             {
-                //TODO: update corresponding filter end
-                break;
-            }
-            case FILTER_UPDATED:
-            {
+                filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = newFilterEnd;
                 break;
             }
             case INV:
