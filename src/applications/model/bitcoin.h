@@ -22,7 +22,7 @@ enum Messages
   INV,              //0
   GET_DATA,         //1
   TX,
-  FILTER,
+  FILTER_ANNOUNCEMENT,
   MODE,
   BLOCK,
   UPDATE_FILTER_BEGIN,

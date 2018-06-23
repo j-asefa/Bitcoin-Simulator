@@ -277,7 +277,7 @@ BitcoinNode::AnnounceFilters (void)
   {
     rapidjson::Document filterData;
     rapidjson::Value value;
-    value = FILTER;
+    value = FILTER_ANNOUNCEMENT;
     filterData.SetObject();
     filterData.AddMember("message", value, filterData.GetAllocator());
 
@@ -309,6 +309,7 @@ BitcoinNode::AnnounceFilters (void)
 void
 BitcoinNode::ValidateNodeFilters(void) {
   uint32_t prevFilterEnd = 0;
+  uint32_t maxFilterEnd = 0;
   map<uint32_t, uint32_t> filterRange;
   map<uint32_t, Ipv4Address> invertedFilterBegin;
   map<uint32_t, Ipv4Address> invertedFilterEnd;
@@ -319,22 +320,32 @@ BitcoinNode::ValidateNodeFilters(void) {
     invertedFilterEnd.insert( std::pair<uint32_t, Ipv4Address>(filterEnd[*i], i));
   }
 
-  // Have to loop again, because the map keys are sorted now
-  for (std::map<uint32_t, uint32_t>::const_iterator it = filterRange.begin(); i != filterRange.end(); i++) {
+  /*
+   * Have to loop again, because the map keys are sorted now. 
+   * Also, we keep track of the highest "filterEnd" value out of all peers 
+   * to make sure at least one peer has assigned us to cover the top end of the filter space.
+   */
+  for (std::map<uint32_t, uint32_t>::const_iterator i = filterRange.begin(); i != filterRange.end(); i++) {
       if (prevFilterEnd < i->first) {
-        // Tell this peer to expand the beginning of its filter backwards to the prevFilterEnd
-        UpdateFilterBegin(invertedFilterBegin[i->first], prevFilterEnd);
-      } else if (i == filterRange.end() && invertedFilterEnd[i->second] < FILTER_BASE_NUMBERING - 1) {
         /* 
-         * This is the peer with filter covering the end of the range. In this case, tell this peer to expand
-         * the end of the filter to the end of the range
+         * In this case, there is a gap in the filters. So extend the upper bound of this peer's filter so it covers the gap.
+         * Note this does not cover the case where no peer has assigned us a bucket containing FILTER_BASE_NUMBERING - 1,
+         * That is covered below by updating maxFilterEnd
          */
-        UpdateFilterEnd(invertedFilterEnd[i->second], FILTER_BASE_NUMBERING - 1);
-      }
+        filterBegin[invertedFilterBegin[i->first]] = prevFilterEnd;
+      } 
+      
       prevFilterEnd = i->second;
+      if (prevFilterEnd > maxFilterEnd)
+          maxFilterEnd = prevFilterEnd;
   }
-}
 
+  /*
+   * Update our largest filterEnd value to make sure it covers the top end of the Tx space
+   */
+  if (maxFilterEnd < FILTER_BASE_NUMBERING - 1)
+      filterEnd[invertedFilterEnd[maxFilterEnd]] = FILTER_BASE_NUMBERING - 1;
+}
 
 
 /* 
@@ -610,7 +621,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
           switch (d["message"].GetInt())
           {
-            case FILTER:
+            case FILTER_ANNOUNCEMENT:
             {
               uint32_t filterBegin = d["filterBegin"].GetInt();
               uint32_t filterEnd   = d["filterEnd"].GetInt();
@@ -754,9 +765,8 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
     return;
 
   if (m_protocol == FILTERS_ON_LINKS) {
-    uint numberHash = std::hash<std::string>()(transactionHash);
-    auto filterValue = filters[receiver];
-    if (hopNumber != 0 && filterValue != numberHash % 8)
+    uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
+    if (hopNumber != 0 && (bucket < filterBegin[receiver] || bucket > filterEnd[receiver])) // TODO: update for when overlap != 0
       return;
   }
 
