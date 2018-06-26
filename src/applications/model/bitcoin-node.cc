@@ -294,11 +294,11 @@ BitcoinNode::AnnounceFilters (void)
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
-    m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
+    m_peersSockets[*i]->Send(reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
     m_peersSockets[*i]->Send(delimiter, 1, 0);
-
+    
     from += filterLength;
-    to += filterLength;
+    to += (filterLength * (1 + m_overlap)) % FILTER_BASE_NUMBERING;
   }
 }
 
@@ -766,8 +766,14 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
 
   if (m_protocol == FILTERS_ON_LINKS) {
     uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
-    if (hopNumber != 0 && (bucket < filterBegin[receiver] || bucket > filterEnd[receiver])) // TODO: update for when overlap != 0
-      return;
+    if (filterBegin[receiver] < filterEnd[receiver]) { // regular case
+        if (hopNumber != 0 && (bucket < filterBegin[receiver] || bucket > filterEnd[receiver])) 
+            return;
+    } else {
+        // special case where with overlap > 0, the filter has wrapped around modulo 1000
+        if (hopNumber != 0 && bucket > filterEnd[receiver] && bucket < filterBegin[receiver])
+            return;
+    }
   }
 
   rapidjson::Document inv;
