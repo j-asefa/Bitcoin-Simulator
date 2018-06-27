@@ -135,7 +135,7 @@ BitcoinNode::SetNodeStats (nodeStatistics *nodeStats)
 }
 
 void
-BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, std::vector<Ipv4Address> outPeers)
+BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, double overlap, int netGroups, int r, int systemId, std::vector<Ipv4Address> outPeers)
 {
   NS_LOG_FUNCTION (this);
   m_txToCreate = txToCreate;
@@ -298,7 +298,7 @@ BitcoinNode::AnnounceFilters (void)
     m_peersSockets[*i]->Send(delimiter, 1, 0);
     
     from += filterLength;
-    to += (filterLength * (1 + m_overlap)) % FILTER_BASE_NUMBERING;
+    to += ((int) (filterLength * (1 + m_overlap))) % FILTER_BASE_NUMBERING;
   }
 }
 
@@ -310,14 +310,14 @@ void
 BitcoinNode::ValidateNodeFilters(void) {
   uint32_t prevFilterEnd = 0;
   uint32_t maxFilterEnd = 0;
-  map<uint32_t, uint32_t> filterRange;
-  map<uint32_t, Ipv4Address> invertedFilterBegin;
-  map<uint32_t, Ipv4Address> invertedFilterEnd;
+  std::map<uint32_t, uint32_t> filterRange;
+  std::map<uint32_t, Ipv4Address> invertedFilterBegin;
+  std::map<uint32_t, Ipv4Address> invertedFilterEnd;
 
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); i++) {
     filterRange.insert( std::pair<uint32_t, uint32_t>(filterBegin[*i], filterEnd[*i]));
-    invertedFilterBegin.insert( std::pair<uint32_t, Ipv4Address>(filterBegin[*i], i));
-    invertedFilterEnd.insert( std::pair<uint32_t, Ipv4Address>(filterEnd[*i], i));
+    invertedFilterBegin.insert( std::pair<uint32_t, Ipv4Address>(filterBegin[*i], *i));
+    invertedFilterEnd.insert( std::pair<uint32_t, Ipv4Address>(filterEnd[*i], *i));
   }
 
   /*
@@ -353,13 +353,14 @@ BitcoinNode::ValidateNodeFilters(void) {
  */
 void
 BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
+    const uint8_t delimiter[] = "#";
     rapidjson::Document filterData;
 
-    rapidjson::Value value;
-    value = UPDATE_FILTER_BEGIN;
+    rapidjson::Value message;
+    message = UPDATE_FILTER_BEGIN;
     filterData.SetObject();
 
-    filterData.AddMember("message", value, filterData.GetAllocator());
+    filterData.AddMember("message", message, filterData.GetAllocator());
 
     rapidjson::Value newFilterBegin;
     newFilterBegin.SetInt(newVal);
@@ -370,8 +371,8 @@ BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
-    m_peersSockets[*i]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
-    m_peersSockets[*i]->Send(delimiter, 1, 0);
+    m_peersSockets[peer]->Send (reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
+    m_peersSockets[peer]->Send(delimiter, 1, 0);
 }
 
 /*
@@ -379,16 +380,17 @@ BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
  */
 void
 BitcoinNode::UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal) {
+    const uint8_t delimiter[] = "#";
     rapidjson::Document filterData;
 
-    rapidjson::Value value;
-    value = UPDATE_FILTER_END;
+    rapidjson::Value message;
+    message = UPDATE_FILTER_END;
     filterData.SetObject();
 
-    filterData.AddMember("message", value, filterData.GetAllocator());
+    filterData.AddMember("message", message, filterData.GetAllocator());
 
     rapidjson::Value newFilterEnd;
-    newFilterBegin.SetInt(newVal);
+    newFilterEnd.SetInt(newVal);
 
     filterData.AddMember("newFilterEnd", newFilterEnd, filterData.GetAllocator());
     
@@ -396,8 +398,8 @@ BitcoinNode::UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal) {
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
-    m_peersSockets[*i]->Send(reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
-    m_peersSockets[*i]->Send(delimiter, 1, 0);
+    m_peersSockets[peer]->Send(reinterpret_cast<const uint8_t*>(filterInfo.GetString()), filterInfo.GetSize(), 0);
+    m_peersSockets[peer]->Send(delimiter, 1, 0);
 }
 
 void
@@ -623,10 +625,10 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
           {
             case FILTER_ANNOUNCEMENT:
             {
-              uint32_t filterBegin = d["filterBegin"].GetInt();
-              uint32_t filterEnd   = d["filterEnd"].GetInt();
-              filterBegin[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filterBegin;
-              filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filterEnd;
+              uint32_t a_filterBegin = d["filterBegin"].GetInt();
+              uint32_t a_filterEnd   = d["filterEnd"].GetInt();
+              filterBegin[InetSocketAddress::ConvertFrom(from).GetIpv4()] = a_filterBegin;
+              filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = a_filterEnd;
               break;
             }
             case MODE:

@@ -78,7 +78,7 @@ public:
    * \param nodeStats a reference to a nodeStatistics struct
    */
   void SetNodeStats(nodeStatistics *nodeStats);
-  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, int netGroups, int r, int systemId, std::vector<Ipv4Address> outPeers);
+  void SetProperties(uint64_t txToCreate, enum ProtocolType protocol, enum ModeType mode, double overlap, int netGroups, int r, int systemId, std::vector<Ipv4Address> outPeers);
 
 protected:
   virtual void DoDispose (void);           // inherited from Application base class.
@@ -164,6 +164,7 @@ protected:
   Address         m_local;                            //!< Local address to bind to
   TypeId          m_tid;                              //!< Protocol TypeId
   int             m_numberOfPeers;                    //!< Number of node's peers
+  double          m_overlap;
   double		  m_meanBlockReceiveTime;             //!< The mean time interval between two consecutive blocks (should be around 10min for bitcoin)
   double		  m_previousBlockReceiveTime;         //!< The time that the node received the previous block
   double		  m_meanBlockPropagationTime;         //!< The mean time that the node has to wait in order to receive a newly mined block
@@ -178,8 +179,8 @@ protected:
 
   int m_systemId;
 
-  std::map<Ipv4Address, uint32_t> filterBegin;        //!< The start of the filter for each peer
-  std::map<Ipv4Address, uint32_t> filterEnd;          //!< The end of the filter for each peer
+  std::map<ns3::Ipv4Address, uint32_t> filterBegin;        //!< The start of the filter for each peer
+  std::map<ns3::Ipv4Address, uint32_t> filterEnd;          //!< The end of the filter for each peer
   std::map<Ipv4Address, ModeType> peersMode;
 
   uint lastTxId;
