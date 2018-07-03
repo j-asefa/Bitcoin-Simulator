@@ -43,6 +43,9 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
 int PoissonDistribution(int value);
 std::vector<int> generateTxCreateList(int n, int nodes);
 
+void PrintSentInvTimes(nodeStatistics *stats, int systemId, int totalNoNodes, int publicIPNodes);
+
+
 
 NS_LOG_COMPONENT_DEFINE ("MyMpiTest");
 
@@ -287,6 +290,7 @@ main (int argc, char *argv[])
 
     PrintStatsForEachNode(stats, totalNoNodes, publicIPNodes, blocksOnlyPrivateIpNodes, txToCreate);
 
+    PrintSentInvTimes(stats, systemId, totalNoNodes, publicIPNodes);
 
     std::cout << "\nThe simulation ran for " << tFinish - tStart << "s simulating "
               << stop << "mins. Performed " << stop * secsPerMin / (tFinish - tStart)
@@ -344,6 +348,9 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
   double totalUsefulInvReceivedRate = 0;
   double totaluselessInvSentMegabytesPublicIPNode = 0;
 
+  uint64_t totalInvSent = 0;
+  uint64_t totalGetDataReceived = 0;
+  uint64_t totalConnections = 0;
   std::map<int, std::vector<double>> allTxRelayTimes;
 
   int ignoredFilters = 0;
@@ -533,4 +540,32 @@ void CollectTxData(nodeStatistics *stats, int totalNoNodes, int txToCreate,
     }
   }
 #endif
+}
+
+void PrintSentInvTimes(nodeStatistics *stats, int systemId, int totalNoNodes, int publicIPNodes)
+{
+if (systemId == 0)
+  {
+    int count = 0;
+
+    while (count < totalNoNodes)
+    {
+      if (stats[count].systemId != 0) {
+        count++;
+        continue;
+      }
+      if (count < publicIPNodes / 2) {
+        count++;
+        continue;
+      }
+
+      for (int j = 0; j < stats[count].invSentMessages; j++)
+       {
+          std::cout << stats[count].invSentTimes[j] << "; ";
+      }
+      std::cout << std::endl;
+      count++;
+      break;
+    }
+  }
 }

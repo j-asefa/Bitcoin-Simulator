@@ -686,6 +686,9 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   m_nodeStats->invSentBytes += m_bitcoinMessageHeader + m_countBytes + 1*m_inventorySizeBytes;
 
   peersKnowTx[transactionHash].push_back(receiver);
+
+  auto now = Simulator::Now().GetSeconds();
+  m_nodeStats->invSentTimes.push_back(now);
 }
 
 void

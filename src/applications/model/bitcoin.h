@@ -69,6 +69,8 @@ typedef struct {
   int systemId;
 
   std::vector<txRecvTime> txReceivedTimes;
+  std::vector<uint64_t> invSentTimes;
+
   int ignoredFilters;
 } nodeStatistics;
 
