@@ -238,10 +238,14 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
   m_nodeStats->systemId = m_systemId;
 
 
-  if (m_protocol == FILTERS_ON_LINKS) {
-    AnnounceFilters();
-    //TODO: while at least one filter is not valid, send request to a peer for an expanded/new filter
-    //ValidateNodeFilters();
+  if (m_protocol == FILTERS_ON_INCOMING_LINKS) {
+    RequestFilters();
+  } else if (m_protocol == PREFERRED_DESTINATIONS) {
+
+  } else if (m_protocol == OUTGOING_FILTERS) {
+    ConstructFilters();
+  } else if (m_protocol == DANDELION_LIKE) {
+
   }
   AnnounceMode();
 }
@@ -267,7 +271,23 @@ BitcoinNode::StopApplication ()     // Called at time specified by Stop
 }
 
 void
-BitcoinNode::AnnounceFilters (void)
+BitcoinNode::ConstructFilters (void)
+{
+  const uint8_t delimiter[] = "#";
+  uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
+  uint32_t from = 0;
+  uint32_t to = filterLength - 1;
+  for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
+  {
+      filterBegin[*i] = from;
+      filterEnd[*i] = to;
+      from += filterLength;
+      to += ((int) (filterLength * (1 + m_overlap))) % FILTER_BASE_NUMBERING;
+  }
+}
+
+void
+BitcoinNode::RequestFilters (void)
 {
   const uint8_t delimiter[] = "#";
   uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
@@ -277,7 +297,7 @@ BitcoinNode::AnnounceFilters (void)
   {
     rapidjson::Document filterData;
     rapidjson::Value value;
-    value = FILTER_ANNOUNCEMENT;
+    value = FILTER_REQUEST;
     filterData.SetObject();
     filterData.AddMember("message", value, filterData.GetAllocator());
 
@@ -290,7 +310,6 @@ BitcoinNode::AnnounceFilters (void)
     filterData.AddMember("filterBegin", filterBegin, filterData.GetAllocator());
     filterData.AddMember("filterEnd", filterEnd, filterData.GetAllocator());
 
-    rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
@@ -623,7 +642,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
           switch (d["message"].GetInt())
           {
-            case FILTER_ANNOUNCEMENT:
+            case FILTER_REQUEST:
             {
               uint32_t a_filterBegin = d["filterBegin"].GetInt();
               uint32_t a_filterEnd   = d["filterEnd"].GetInt();
@@ -766,9 +785,10 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end())
     return;
 
-  if (m_protocol == FILTERS_ON_LINKS) {
+  // both filter protocols should behave the same way when sending INVs
+  if (m_protocol == FILTERS_ON_INCOMING_LINKS || m_protocol == OUTGOING_FILTERS) {
     uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
-    if (filterBegin[receiver] < filterEnd[receiver]) { // regular case
+    if (filterBegin[receiver] < filterEnd[receiver]) { 
         if (hopNumber != 0 && (bucket < filterBegin[receiver] || bucket > filterEnd[receiver])) 
             return;
     } else {
@@ -776,6 +796,10 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
         if (hopNumber != 0 && bucket > filterEnd[receiver] && bucket < filterBegin[receiver])
             return;
     }
+  } else if (m_protocol == PREFERRED_DESTINATIONS) {
+
+  } else if (m_protocol == DANDELION_LIKE) {
+
   }
 
   rapidjson::Document inv;

@@ -22,7 +22,7 @@ enum Messages
   INV,              //0
   GET_DATA,         //1
   TX,
-  FILTER_ANNOUNCEMENT,
+  FILTER_REQUEST,
   MODE,
   BLOCK,
   UPDATE_FILTER_BEGIN,
@@ -32,7 +32,10 @@ enum Messages
 enum ProtocolType
 {
   STANDARD_PROTOCOL,           //DEFAULT
-  FILTERS_ON_LINKS
+  FILTERS_ON_INCOMING_LINKS,
+  PREFERRED_DESTINATIONS,
+  OUTGOING_FILTERS,
+  DANDELION_LIKE
 };
 
 enum ModeType
