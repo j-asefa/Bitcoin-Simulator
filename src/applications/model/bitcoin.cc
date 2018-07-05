@@ -20,6 +20,12 @@ const char* getMessageName(enum Messages m)
   {
     case INV: return "INV";
     case GET_DATA: return "GET_DATA";
+    case TX: return "TX";
+    case FILTER_REQUEST: return "FILTER_REQUEST";
+    case MODE: return "MODE";
+    case BLOCK: return "BLOCK";
+    case UPDATE_FILTER_BEGIN: return "UPDATE_FILTER_BEGIN";
+    case UPDATE_FILTER_END: return "UPDATE_FILTER_END";
   }
 }
 

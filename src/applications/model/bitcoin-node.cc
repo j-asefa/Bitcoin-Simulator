@@ -241,11 +241,13 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
   if (m_protocol == FILTERS_ON_INCOMING_LINKS) {
     RequestFilters();
   } else if (m_protocol == PREFERRED_DESTINATIONS) {
-
+    //ChoosePreferredPeers();
+    // In this case we don't set up any filters, but on INV messages we send to preferred peers.
+    // maybe we set up preferred peers
   } else if (m_protocol == OUTGOING_FILTERS) {
     ConstructFilters();
   } else if (m_protocol == DANDELION_LIKE) {
-
+    ConstructDandelionLinks();
   }
   AnnounceMode();
 }
@@ -797,9 +799,9 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
             return;
     }
   } else if (m_protocol == PREFERRED_DESTINATIONS) {
-
+    // we send based on preferred peers (length of connection, probability of useful INV messages etc.)
   } else if (m_protocol == DANDELION_LIKE) {
-
+    // we send to peers based on where it came from
   }
 
   rapidjson::Document inv;
