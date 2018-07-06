@@ -275,7 +275,11 @@ BitcoinNode::StopApplication ()     // Called at time specified by Stop
 void
 BitcoinNode::ConstructDandelionLinks (void) 
 {
-    //TODO: for each incoming peer, choose an outgoing peer != incoming.
+    //for each incoming peer, choose an outgoing peer != incoming.
+    for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
+    {
+        
+    }
 }
 
 void
@@ -783,8 +787,28 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);
-      //TODO: do the checks for each protocol here, rather than in SendInvToNode. It's faster.
-      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+
+      if (hopNumber == 0) {
+          Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+      } else {
+
+          // both filter protocols should behave the same way when sending INVs
+          if (m_protocol == FILTERS_ON_INCOMING_LINKS || m_protocol == OUTGOING_FILTERS) {
+            uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
+            if (filterBegin[*i] < filterEnd[*i]) { 
+                if (filterBegin[receiver] < bucket && bucket < filterEnd[receiver]) 
+                  Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+            } else {
+                // special case where we have overlap > 0 and the filter has wrapped around modulo 1000
+                if (bucket < filterEnd[receiver] || bucket > filterBegin[receiver])
+                  Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+            }
+          } else if (m_protocol == PREFERRED_DESTINATIONS) {
+            // we send based on preferred peers (length of connection, probability of useful INV messages etc.)
+          } else if (m_protocol == DANDELION_LIKE) {
+            // we send to peers based on where it came from
+          }
+      }
     }
   }
 }
@@ -793,23 +817,6 @@ void
 BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber) {
   if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end())
     return;
-
-  // both filter protocols should behave the same way when sending INVs
-  if (m_protocol == FILTERS_ON_INCOMING_LINKS || m_protocol == OUTGOING_FILTERS) {
-    uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
-    if (filterBegin[receiver] < filterEnd[receiver]) { 
-        if (hopNumber != 0 && (bucket < filterBegin[receiver] || bucket > filterEnd[receiver])) 
-            return;
-    } else {
-        // special case where with overlap > 0, the filter has wrapped around modulo 1000
-        if (hopNumber != 0 && bucket > filterEnd[receiver] && bucket < filterBegin[receiver])
-            return;
-    }
-  } else if (m_protocol == PREFERRED_DESTINATIONS) {
-    // we send based on preferred peers (length of connection, probability of useful INV messages etc.)
-  } else if (m_protocol == DANDELION_LIKE) {
-    // we send to peers based on where it came from
-  }
 
   rapidjson::Document inv;
   inv.SetObject();
