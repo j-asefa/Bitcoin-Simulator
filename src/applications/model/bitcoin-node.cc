@@ -273,6 +273,12 @@ BitcoinNode::StopApplication ()     // Called at time specified by Stop
 }
 
 void
+BitcoinNode::ConstructDandelionLinks (void) 
+{
+    //TODO: for each incoming peer, choose an outgoing peer != incoming.
+}
+
+void
 BitcoinNode::ConstructFilters (void)
 {
   const uint8_t delimiter[] = "#";
@@ -777,6 +783,7 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);
+      //TODO: do the checks for each protocol here, rather than in SendInvToNode. It's faster.
       Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
     }
   }

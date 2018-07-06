@@ -114,7 +114,8 @@ protected:
 
 
   void RequestFilters(void);
-  void ConstructFilters (void)
+  void ConstructFilters (void);
+  void ConstructDandelionLinks(void);
   void ValidateNodeFilters(void);
   void UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal);
   void UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal);
