@@ -239,13 +239,13 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
 
 
   if (m_protocol == FILTERS_ON_INCOMING_LINKS) {
-    RequestFilters();
+    RequestIncomingFilters();
   } else if (m_protocol == PREFERRED_DESTINATIONS) {
     //ChoosePreferredPeers();
     // In this case we don't set up any filters, but on INV messages we send to preferred peers.
     // maybe we set up preferred peers
   } else if (m_protocol == OUTGOING_FILTERS) {
-    ConstructFilters();
+    ConstructOutgoinFilters();
   } else if (m_protocol == DANDELION_LIKE) {
     ConstructDandelionLinks();
   }
@@ -279,7 +279,7 @@ BitcoinNode::ConstructDandelionLinks (void)
 }
 
 void
-BitcoinNode::ConstructFilters (void)
+BitcoinNode::ConstructOutgoingFilters (void)
 {
   const uint8_t delimiter[] = "#";
   uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
@@ -295,7 +295,7 @@ BitcoinNode::ConstructFilters (void)
 }
 
 void
-BitcoinNode::RequestFilters (void)
+BitcoinNode::RequestIncomingFilters (void)
 {
   const uint8_t delimiter[] = "#";
   uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs

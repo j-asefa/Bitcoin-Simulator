@@ -113,8 +113,8 @@ protected:
 
 
 
-  void RequestFilters(void);
-  void ConstructFilters (void);
+  void RequestIncomingFilters(void);
+  void ConstructOutgoingFilters (void);
   void ConstructDandelionLinks(void);
   void ValidateNodeFilters(void);
   void UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal);
@@ -166,7 +166,7 @@ protected:
   Address         m_local;                            //!< Local address to bind to
   TypeId          m_tid;                              //!< Protocol TypeId
   int             m_numberOfPeers;                    //!< Number of node's peers
-  double          m_overlap;
+  double          m_overlap;                          //!< Overlap of filters
   double		  m_meanBlockReceiveTime;             //!< The mean time interval between two consecutive blocks (should be around 10min for bitcoin)
   double		  m_previousBlockReceiveTime;         //!< The time that the node received the previous block
   double		  m_meanBlockPropagationTime;         //!< The mean time that the node has to wait in order to receive a newly mined block
@@ -198,6 +198,7 @@ protected:
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers
   std::map<Ipv4Address, double>                       m_peersDownloadSpeeds;            //!< The peersDownloadSpeeds of channels
   std::map<Ipv4Address, double>                       m_peersUploadSpeeds;              //!< The peersUploadSpeeds of channels
+  std::map<Ipv4Address, double>                       m_peersConnectionLengths;         //!< The length of time this node has been connected to each peer
   std::map<Ipv4Address, Ptr<Socket>>                  m_peersSockets;                   //!< The sockets of peers
   std::map<std::string, std::vector<Address>>         m_queueInv;                       //!< map holding the addresses of nodes which sent an INV for a particular block
   std::map<std::string, std::vector<Address>>         m_queueChunkPeers;                //!< map holding the addresses of nodes from which we are waiting for a CHUNK, key = block_hash
