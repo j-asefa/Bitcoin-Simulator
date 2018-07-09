@@ -80,7 +80,7 @@ BitcoinNodeHelper::InstallPriv (Ptr<Node> node)
   app->SetPeersUploadSpeeds(m_peersUploadSpeeds);
   app->SetNodeInternetSpeeds(m_internetSpeeds);
   app->SetNodeStats(m_nodeStats);
-  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_netGroups, m_r, m_systemId, m_outPeers);
+  app->SetProperties(m_txToCreate, m_protocol,  m_mode, m_overlap, m_netGroups, m_r, m_systemId, m_outPeers);
 
   node->AddApplication (app);
 
