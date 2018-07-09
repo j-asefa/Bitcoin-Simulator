@@ -245,7 +245,7 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
     // In this case we don't set up any filters, but on INV messages we send to preferred peers.
     // maybe we set up preferred peers
   } else if (m_protocol == OUTGOING_FILTERS) {
-    ConstructOutgoinFilters();
+    ConstructOutgoingFilters();
   } else if (m_protocol == DANDELION_LIKE) {
     ConstructDandelionLinks();
   }
@@ -272,13 +272,25 @@ BitcoinNode::StopApplication ()     // Called at time specified by Stop
   NS_LOG_WARN ("\n\nBITCOIN NODE " << GetNode ()->GetId () << ":");
 }
 
+/* 
+ * For each incoming peer, choose an outgoing peer != incoming to relay transactions
+ * from incoming -> outgoing peers.
+ */
 void
 BitcoinNode::ConstructDandelionLinks (void) 
 {
-    //for each incoming peer, choose an outgoing peer != incoming.
-    for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
+    for (int i = 0; i < m_peersAddresses.size(); i++)
     {
+        std::random_device rd; 
+		std::mt19937 eng(rd()); 
+		std::uniform_int_distribution<> distr(0, m_peersAddresses.size()); 
+		int outgoingPeer = distr(eng);
+
+        while (m_DandelionLinks.find(m_peersAddresses.at(outgoingPeer)) != m_DandelionLinks.end()) {
+            outgoingPeer = distr(eng);
+        }
         
+        m_DandelionLinks.insert(std::pair<Ipv4Address, Ipv4Address>(m_peersAddresses.at(i), m_peersAddresses.at(outgoingPeer)));
     }
 }
 
@@ -806,7 +818,8 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
           } else if (m_protocol == PREFERRED_DESTINATIONS) {
             // we send based on preferred peers (length of connection, probability of useful INV messages etc.)
           } else if (m_protocol == DANDELION_LIKE) {
-            // we send to peers based on where it came from
+            // Choose outgoing link from our dandelion links map
+            Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, m_DandelionLinks[InetSocketAddress::ConvertFrom(from).GetIpv4()], transactionHash, hopNumber);
           }
       }
     }
