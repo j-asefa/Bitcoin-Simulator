@@ -310,9 +310,9 @@ void
 BitcoinNode::ValidateNodeFilters(void) {
   uint32_t prevFilterEnd = 0;
   uint32_t maxFilterEnd = 0;
-  map<uint32_t, uint32_t> filterRange;
-  map<uint32_t, Ipv4Address> invertedFilterBegin;
-  map<uint32_t, Ipv4Address> invertedFilterEnd;
+  std::map<uint32_t, uint32_t> filterRange;
+  std::map<uint32_t, Ipv4Address> invertedFilterBegin;
+  std::map<uint32_t, Ipv4Address> invertedFilterEnd;
 
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); i++) {
     filterRange.insert( std::pair<uint32_t, uint32_t>(filterBegin[*i], filterEnd[*i]));
@@ -623,10 +623,10 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
           {
             case FILTER_ANNOUNCEMENT:
             {
-              uint32_t filterBegin = d["filterBegin"].GetInt();
-              uint32_t filterEnd   = d["filterEnd"].GetInt();
-              filterBegin[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filterBegin;
-              filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = filterEnd;
+              uint32_t a_filterBegin = d["filterBegin"].GetInt();
+              uint32_t a_filterEnd   = d["filterEnd"].GetInt();
+              filterBegin[InetSocketAddress::ConvertFrom(from).GetIpv4()] = a_filterBegin;
+              filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = a_filterEnd;
               break;
             }
             case MODE:
