@@ -19,6 +19,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/double.h"
 #include "bitcoin-node.h"
+#include "../helper/bitcoin-node-helper.h"
 #include <random>
 
 namespace ns3 {
@@ -348,6 +349,7 @@ BitcoinNode::RequestIncomingFilters (void)
     filterData.AddMember("filterBegin", filterBegin, filterData.GetAllocator());
     filterData.AddMember("filterEnd", filterEnd, filterData.GetAllocator());
 
+    rapidjson::StringBuffer filterInfo;
     rapidjson::Writer<rapidjson::StringBuffer> filterWriter(filterInfo);
     filterData.Accept(filterWriter);
 
@@ -604,7 +606,7 @@ BitcoinNode::EmitTransaction (void)
   stringStream << m_nodeStats->txCreated << "/" << nodeId;
   std::string transactionId = stringStream.str();
 
-  AdvertiseNewTransactionInv(InetSocketAddress::ConvertFrom(m_local).GetIpv4(), transactionId, 0);
+  AdvertiseTransactionInvWrapper(InetSocketAddress::ConvertFrom(m_local).GetIpv4(), transactionId, 0);
 
   SaveTxData(transactionId);
 
@@ -714,11 +716,21 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 int   hopNumber = d["hop"].GetInt();
                 peersKnowTx[parsedInv].push_back(InetSocketAddress::ConvertFrom(from).GetIpv4());
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
-                    if (m_protocol == PREFERRED_DESTINATIONS) 
-                        m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numInvReceived++; 
+                    if (m_protocol == PREFERRED_DESTINATIONS) {
+                        m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUselessInvReceived++; 
+                        m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].usefulInvRate = ((double) m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUsefulInvReceived) / m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUselessInvReceived; 
+                        UpdatePreferredPeersList();
+                    }
                     else
                         continue;
                 } else {
+                  if (m_protocol == PREFERRED_DESTINATIONS) {
+                      m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUsefulInvReceived++; 
+                      uint32_t useless = m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUselessInvReceived;
+                      uint32_t useful = m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUsefulInvReceived;
+                      m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].usefulInvRate = useless == 0 ? (double) useful : ((double) useful) / useless;
+                      UpdatePreferredPeersList();
+                  }
                   SaveTxData(parsedInv);
                   if (m_mode == SPY) {
                     heardTotal++;
@@ -726,7 +738,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                     std::cout << knownTxHashes.size() << ", Fraction heard from creator: " << (float)firstTimeHops[0] / heardTotal << std::endl;
                     m_nodeStats->firstSpySuccess = (float)firstTimeHops[0] / heardTotal;
                   } else {
-                    AdvertiseNewTransactionInv(from, parsedInv, hopNumber + 1);
+                    AdvertiseTransactionInvWrapper(from, parsedInv, hopNumber + 1);
                   }
                 }
                 requestTxs.push_back(parsedInv);
@@ -746,11 +758,6 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
               d.AddMember("transactions", array, d.GetAllocator());
               SendMessage(INV, GET_DATA, d, from);
-              if (m_protocol == PREFERRED_DESTINATIONS) {
-                  m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent++; 
-                  m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].usefulInvRate = ((double) m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numInvReceived) / m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent; 
-                  UpdatePreferredPeersList();
-              }
               break;
             }
             case GET_DATA:
@@ -803,10 +810,41 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
   }
 }
 
-
+void
+BitcoinNode::AdvertiseTransactionInvWrapper (Address from, const std::string transactionHash, int hopNumber)
+{
+    switch(m_protocol)
+    {
+        case STANDARD_PROTOCOL:
+        {
+            AdvertiseNewTransactionInvStandard(from, transactionHash, hopNumber);
+            break;
+        }
+        case PREFERRED_DESTINATIONS:
+        {
+			AdvertiseNewTransactionInvPreferredPeers(from, transactionHash, hopNumber);
+            break;
+        }
+        case OUTGOING_FILTERS:
+        {
+			AdvertiseNewTransactionInvFilters(from, transactionHash, hopNumber);
+            break;
+        }
+        case FILTERS_ON_INCOMING_LINKS:
+        {
+			AdvertiseNewTransactionInvFilters(from, transactionHash, hopNumber);
+            break;
+        }
+        case DANDELION_LIKE:
+        {
+			AdvertiseNewTransactionInvDandelion(from, transactionHash, hopNumber);
+            break;
+        }
+    }
+}
 
 void
-BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber)
+BitcoinNode::AdvertiseNewTransactionInvStandard(Address from, const std::string transactionHash, int hopNumber)
 {
   NS_LOG_FUNCTION (this);
 
@@ -822,38 +860,75 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
         delay = PoissonNextSend(invIntervalSeconds);
       else
         delay = PoissonNextSend(invIntervalSeconds * 2);
+      Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+    }
+  }
+}
 
-      if (hopNumber == 0) {
-          Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
-      } else {
+void
+BitcoinNode::AdvertiseNewTransactionInvDandelion(Address from, const std::string transactionHash, int hopNumber)
+{
+    NS_LOG_FUNCTION (this);
+    auto delay = 0;
+    Ipv4Address outPeer = m_DandelionLinks[InetSocketAddress::ConvertFrom(from).GetIpv4()];
+    if (std::find(m_outPeers.begin(), m_outPeers.end(), outPeer) != m_outPeers.end())
+        delay = PoissonNextSend(invIntervalSeconds);
+    else
+        delay = PoissonNextSend(invIntervalSeconds * 2);
+    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, outPeer, transactionHash, hopNumber);
+}
 
-          // both filter protocols should behave the same way when sending INVs
-          if (m_protocol == FILTERS_ON_INCOMING_LINKS || m_protocol == OUTGOING_FILTERS) {
-            uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
+void
+BitcoinNode::AdvertiseNewTransactionInvPreferredPeers(Address from, const std::string transactionHash, int hopNumber)
+{
+    NS_LOG_FUNCTION (this);
+    auto delay1 = 0;
+    auto delay2 = 0;
+    Ipv4Address peer1 = ChooseFromPreferredPeers();
+
+    // make sure we're not sending to our from peer
+    while (peer1.Get() == from.Get())
+        peer1 = ChooseFromPreferredPeers();
+    Ipv4Address peer2 = ChooseFromPreferredPeers();
+
+    // make sure peer 1 and 2 are different
+    while (peer2.Get() == peer1.Get())
+        peer2 = ChooseFromPreferredPeers();
+
+    if (std::find(m_outPeers.begin(), m_outPeers.end(), peer1) != m_outPeers.end())
+        delay1 = PoissonNextSend(invIntervalSeconds);
+    else
+        delay1 = PoissonNextSend(invIntervalSeconds * 2);
+
+    if (std::find(m_outPeers.begin(), m_outPeers.end(), peer2) != m_outPeers.end())
+        delay2 = PoissonNextSend(invIntervalSeconds);
+    else
+        delay2 = PoissonNextSend(invIntervalSeconds * 2);
+
+    Simulator::Schedule (Seconds(delay1), &BitcoinNode::SendInvToNode, this, peer1, transactionHash, hopNumber);
+    Simulator::Schedule (Seconds(delay2), &BitcoinNode::SendInvToNode, this, peer2, transactionHash, hopNumber);
+
+}
+
+void
+BitcoinNode::AdvertiseNewTransactionInvFilters(Address from, const std::string transactionHash, int hopNumber)
+{
+    NS_LOG_FUNCTION (this);
+    uint bucket = std::hash<std::string>()(transactionHash) % FILTER_BASE_NUMBERING;
+    for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
+    {
+        if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
+        {
             if (filterBegin[*i] < filterEnd[*i]) { 
-                if (filterBegin[receiver] < bucket && bucket < filterEnd[receiver]) 
+                if (filterBegin[*i] < bucket && bucket < filterEnd[*i]) 
                   Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
             } else {
                 // special case where we have overlap > 0 and the filter has wrapped around modulo 1000
-                if (bucket < filterEnd[receiver] || bucket > filterBegin[receiver])
+                if (bucket < filterEnd[*i] || bucket > filterBegin[*i])
                   Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
             }
-          }
-      }
+        }
     }
-  }
-  if (m_protocol == PREFERRED_DESTINATIONS) {
-    // Send to the 2 most preferred peers
-    Ipv4Address peer1 = ChooseFromPreferredPeers();
-    Ipv4Address peer2 = ChooseFromPreferredPeers();
-    while (peer2.Get() == peer1.Get())
-        peer2 = ChooseFromPreferredPeers();
-    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, peer1, transactionHash, hopNumber);
-    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, peer2, transactionHash, hopNumber);
-  } else if (m_protocol == DANDELION_LIKE) {
-    // Choose outgoing link from our dandelion links map
-    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, m_DandelionLinks[InetSocketAddress::ConvertFrom(from).GetIpv4()], transactionHash, hopNumber);
-  }
 }
 
 void

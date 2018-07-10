@@ -78,7 +78,8 @@ typedef struct {
 } nodeStatistics;
 
 typedef struct {
-  long numInvReceived;
+  long numUsefulInvReceived;
+  long numUselessInvReceived;
   long numGetDataReceived;
   long numGetDataSent;
   double connectionLength;

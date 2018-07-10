@@ -106,7 +106,6 @@ BitcoinTopologyHelper::BitcoinTopologyHelper (uint32_t noCpus, uint32_t totalNoN
 	}
 
 
-
   //Print the nodes with fewer than required connections
   if (m_systemId == 0)
   {

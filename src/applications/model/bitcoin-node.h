@@ -131,7 +131,11 @@ protected:
 
   void SaveTxData(std::string txId);
 
-  void AdvertiseNewTransactionInv (Address from, const std::string transactionHash, int hopNumber);
+  void AdvertiseInvWrapper (Address from, const std::string transactionHash, int hopNumber);
+  void AdvertiseNewTransactionInvStandard (Address from, const std::string transactionHash, int hopNumber);
+  void AdvertiseNewTransactionInvPreferredPeers (Address from, const std::string transactionHash, int hopNumber);
+  void AdvertiseNewTransactionInvFilters (Address from, const std::string transactionHash, int hopNumber);
+  void AdvertiseNewTransactionInvDandelion (Address from, const std::string transactionHash, int hopNumber);
 
   void SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber);
 
@@ -202,7 +206,7 @@ protected:
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers
   std::map<Ipv4Address, double>                       m_peersDownloadSpeeds;            //!< The peersDownloadSpeeds of channels
   std::map<Ipv4Address, double>                       m_peersUploadSpeeds;              //!< The peersUploadSpeeds of channels
-  std::map<Ipv4Address, peerStatistics>               m_peerStatistics;                 //!< map holding message statistics for each of this node's peers. Used to order peers by some metric.
+
   std::vector<Ipv4Address>                            m_preferredPeers;                 //!< List of peers the node deems "preferred" by some metric
   std::map<Ipv4Address, Ptr<Socket>>                  m_peersSockets;                   //!< The sockets of peers
   std::map<std::string, std::vector<Address>>         m_queueInv;                       //!< map holding the addresses of nodes which sent an INV for a particular block
