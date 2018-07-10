@@ -239,15 +239,22 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
 
   m_nodeStats->systemId = m_systemId;
 
-  if (m_protocol == FILTERS_ON_INCOMING_LINKS) {
+  if (m_protocol == FILTERS_ON_INCOMING_LINKS) 
+  {
     RequestIncomingFilters();
-  } else if (m_protocol == PREFERRED_DESTINATIONS) {
+  } 
+  else if (m_protocol == PREFERRED_DESTINATIONS) 
+  {
     
     // In this case we don't set up any filters, but on INV messages we send to preferred peers.
     // maybe we set up preferred peers
-  } else if (m_protocol == OUTGOING_FILTERS) {
+  } 
+  else if (m_protocol == OUTGOING_FILTERS) 
+  {
     ConstructOutgoingFilters();
-  } else if (m_protocol == DANDELION_LIKE) {
+  } 
+  else if (m_protocol == DANDELION_LIKE) 
+  {
     ConstructDandelionLinks();
   }
   AnnounceMode();
@@ -287,7 +294,8 @@ BitcoinNode::ConstructDandelionLinks (void)
 		std::uniform_int_distribution<> distr(0, m_peersAddresses.size()); 
 		int outgoingPeer = distr(eng);
 
-        while (m_DandelionLinks.find(m_peersAddresses.at(outgoingPeer)) != m_DandelionLinks.end()) {
+        while (m_DandelionLinks.find(m_peersAddresses.at(outgoingPeer)) != m_DandelionLinks.end()) 
+        {
             outgoingPeer = distr(eng);
         }
         
@@ -296,12 +304,18 @@ BitcoinNode::ConstructDandelionLinks (void)
 }
 
 void
-BitcoinNode::UpdatePreferredPeersList(void) {
-// TODO: update list based on 4 peers with highest useful inv rates
+BitcoinNode::UpdatePreferredPeersList(void) 
+{
+    double maxUsefulInvRate = m_peersAddresses.begin()->second.usefulInvRate; 
+    for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i) 
+    {
+            
+    }
 }
 
 Ipv4Address
-BitcoinNode::ChooseFromPreferredPeers(void) {
+BitcoinNode::ChooseFromPreferredPeers(void) 
+{
     std::random_device rd; 
     std::mt19937 eng(rd()); 
     std::uniform_int_distribution<> distr(0, m_preferredPeers.size()); 
@@ -373,7 +387,8 @@ BitcoinNode::ValidateNodeFilters(void) {
   std::map<uint32_t, Ipv4Address> invertedFilterBegin;
   std::map<uint32_t, Ipv4Address> invertedFilterEnd;
 
-  for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); i++) {
+  for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); i++) 
+  {
     filterRange.insert( std::pair<uint32_t, uint32_t>(filterBegin[*i], filterEnd[*i]));
     invertedFilterBegin.insert( std::pair<uint32_t, Ipv4Address>(filterBegin[*i], *i));
     invertedFilterEnd.insert( std::pair<uint32_t, Ipv4Address>(filterEnd[*i], *i));
@@ -411,7 +426,8 @@ BitcoinNode::ValidateNodeFilters(void) {
  * Construct and send UPDATE_FILTER_BEGIN message
  */
 void
-BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
+BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) 
+{
     const uint8_t delimiter[] = "#";
     rapidjson::Document filterData;
 
@@ -438,7 +454,8 @@ BitcoinNode::UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal) {
  * Construct and send UPDATE_FILTER_END message
  */
 void
-BitcoinNode::UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal) {
+BitcoinNode::UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal) 
+{
     const uint8_t delimiter[] = "#";
     rapidjson::Document filterData;
 
@@ -758,13 +775,16 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
               d.AddMember("transactions", array, d.GetAllocator());
               SendMessage(INV, GET_DATA, d, from);
+              //if (m_protocol == PREFERRED_DESTINATIONS)
+              //    m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent++;
               break;
             }
             case GET_DATA:
             {
               NS_LOG_INFO ("GET_DATA");
               m_nodeStats->getDataReceivedMessages += 1;
-              m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataReceived++; 
+              //if (m_protocol == PREFERRED_DESTINATIONS)
+              //    m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataReceived++; 
               // SendMessage(GET_DATA, TX, d, from);
               break;
             }
