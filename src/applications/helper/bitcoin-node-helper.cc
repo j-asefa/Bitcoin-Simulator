@@ -30,6 +30,7 @@ BitcoinNodeHelper::commonConstructor(std::string netProtocol, Address address, s
   m_netProtocol = netProtocol;
   m_address = address;
   m_peersAddresses = peers;
+  
   m_peersDownloadSpeeds = peersDownloadSpeeds;
   m_peersUploadSpeeds = peersUploadSpeeds;
   m_internetSpeeds = internetSpeeds;
@@ -129,6 +130,16 @@ BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protoco
   m_netGroups = netGroups;
   m_systemId = systemId;
   m_outPeers = outPeers;
+  if (m_protocol == PREFERRED_DESTINATIONS) {
+      peerStatistics peerstats;
+      peerstats->numInvReceived = 0;
+      peerstats->numGetDataReceived = 0;
+      peerstats->numGetDataSent = 0;
+      peerstats->connectionLength = 0;
+      peerstats->usefulInvRate = 0;
+      for(auto &peer : m_peersAddresses)
+        m_peerStatistics.insert(std::pair<Ipv4Address, peerStatistics>(peer, m_peerStatistics));
+  }
 }
 
 

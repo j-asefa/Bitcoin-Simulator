@@ -77,6 +77,13 @@ typedef struct {
   int ignoredFilters;
 } nodeStatistics;
 
+typedef struct {
+  long numInvReceived;
+  long numGetDataReceived;
+  long numGetDataSent;
+  double connectionLength;
+  double usefulInvRate;
+} peerStatistics;
 
 typedef struct {
   double downloadSpeed;

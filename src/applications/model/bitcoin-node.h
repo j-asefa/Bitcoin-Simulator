@@ -116,6 +116,8 @@ protected:
   void RequestIncomingFilters(void);
   void ConstructOutgoingFilters (void);
   void ConstructDandelionLinks(void);
+  Ipv4Address ChooseFromPreferredPeers(void);
+  void UpdatePreferredPeersList(void);
   void ValidateNodeFilters(void);
   void UpdateFilterBegin(Ipv4Address& peer, uint32_t newVal);
   void UpdateFilterEnd(Ipv4Address& peer, uint32_t newVal);
@@ -166,6 +168,7 @@ protected:
   Address         m_local;                            //!< Local address to bind to
   TypeId          m_tid;                              //!< Protocol TypeId
   int             m_numberOfPeers;                    //!< Number of node's peers
+  int             m_numInvsSent;                      //!< keep track of number of INVs sent to all peers - used for "Preferred Destinations" routing
   double          m_overlap;                          //!< Overlap of filters
   double		  m_meanBlockReceiveTime;             //!< The mean time interval between two consecutive blocks (should be around 10min for bitcoin)
   double		  m_previousBlockReceiveTime;         //!< The time that the node received the previous block
@@ -199,7 +202,8 @@ protected:
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers
   std::map<Ipv4Address, double>                       m_peersDownloadSpeeds;            //!< The peersDownloadSpeeds of channels
   std::map<Ipv4Address, double>                       m_peersUploadSpeeds;              //!< The peersUploadSpeeds of channels
-  std::map<Ipv4Address, double>                       m_peersConnectionLengths;         //!< The length of time this node has been connected to each peer
+  std::map<Ipv4Address, peerStatistics>               m_peerStatistics;                 //!< map holding message statistics for each of this node's peers. Used to order peers by some metric.
+  std::vector<Ipv4Address>                            m_preferredPeers;                 //!< List of peers the node deems "preferred" by some metric
   std::map<Ipv4Address, Ptr<Socket>>                  m_peersSockets;                   //!< The sockets of peers
   std::map<std::string, std::vector<Address>>         m_queueInv;                       //!< map holding the addresses of nodes which sent an INV for a particular block
   std::map<std::string, std::vector<Address>>         m_queueChunkPeers;                //!< map holding the addresses of nodes from which we are waiting for a CHUNK, key = block_hash

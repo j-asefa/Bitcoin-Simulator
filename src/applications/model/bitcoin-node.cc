@@ -69,6 +69,7 @@ BitcoinNode::BitcoinNode (void) : m_bitcoinPort (8333), m_secondsPerMin(60), m_c
   heardTotal = 0;
   firstTimeHops = std::vector<int>(1024);
   m_numberOfPeers = m_peersAddresses.size();
+  m_numInvsSent = 0;
   txCreator = false;
 }
 
@@ -237,11 +238,10 @@ BitcoinNode::StartApplication ()    // Called at time specified by Start
 
   m_nodeStats->systemId = m_systemId;
 
-
   if (m_protocol == FILTERS_ON_INCOMING_LINKS) {
     RequestIncomingFilters();
   } else if (m_protocol == PREFERRED_DESTINATIONS) {
-    //ChoosePreferredPeers();
+    
     // In this case we don't set up any filters, but on INV messages we send to preferred peers.
     // maybe we set up preferred peers
   } else if (m_protocol == OUTGOING_FILTERS) {
@@ -292,6 +292,20 @@ BitcoinNode::ConstructDandelionLinks (void)
         
         m_DandelionLinks.insert(std::pair<Ipv4Address, Ipv4Address>(m_peersAddresses.at(i), m_peersAddresses.at(outgoingPeer)));
     }
+}
+
+void
+BitcoinNode::UpdatePreferredPeersList(void) {
+// TODO: update list based on 4 peers with highest useful inv rates
+}
+
+Ipv4Address
+BitcoinNode::ChooseFromPreferredPeers(void) {
+    std::random_device rd; 
+    std::mt19937 eng(rd()); 
+    std::uniform_int_distribution<> distr(0, m_preferredPeers.size()); 
+    int outgoingPeer = distr(eng);
+    return m_preferredPeers.at(outgoingPeer);
 }
 
 void
@@ -700,7 +714,10 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 int   hopNumber = d["hop"].GetInt();
                 peersKnowTx[parsedInv].push_back(InetSocketAddress::ConvertFrom(from).GetIpv4());
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
-                  continue;
+                    if (m_protocol == PREFERRED_DESTINATIONS) 
+                        m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numInvReceived++; 
+                    else
+                        continue;
                 } else {
                   SaveTxData(parsedInv);
                   if (m_mode == SPY) {
@@ -729,12 +746,18 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
               d.AddMember("transactions", array, d.GetAllocator());
               SendMessage(INV, GET_DATA, d, from);
+              if (m_protocol == PREFERRED_DESTINATIONS) {
+                  m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent++; 
+                  m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].usefulInvRate = ((double) m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numInvReceived) / m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent; 
+                  UpdatePreferredPeersList();
+              }
               break;
             }
             case GET_DATA:
             {
               NS_LOG_INFO ("GET_DATA");
               m_nodeStats->getDataReceivedMessages += 1;
+              m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataReceived++; 
               // SendMessage(GET_DATA, TX, d, from);
               break;
             }
@@ -815,14 +838,21 @@ BitcoinNode::AdvertiseNewTransactionInv (Address from, const std::string transac
                 if (bucket < filterEnd[receiver] || bucket > filterBegin[receiver])
                   Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
             }
-          } else if (m_protocol == PREFERRED_DESTINATIONS) {
-            // we send based on preferred peers (length of connection, probability of useful INV messages etc.)
-          } else if (m_protocol == DANDELION_LIKE) {
-            // Choose outgoing link from our dandelion links map
-            Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, m_DandelionLinks[InetSocketAddress::ConvertFrom(from).GetIpv4()], transactionHash, hopNumber);
           }
       }
     }
+  }
+  if (m_protocol == PREFERRED_DESTINATIONS) {
+    // Send to the 2 most preferred peers
+    Ipv4Address peer1 = ChooseFromPreferredPeers();
+    Ipv4Address peer2 = ChooseFromPreferredPeers();
+    while (peer2.Get() == peer1.Get())
+        peer2 = ChooseFromPreferredPeers();
+    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, peer1, transactionHash, hopNumber);
+    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, peer2, transactionHash, hopNumber);
+  } else if (m_protocol == DANDELION_LIKE) {
+    // Choose outgoing link from our dandelion links map
+    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, m_DandelionLinks[InetSocketAddress::ConvertFrom(from).GetIpv4()], transactionHash, hopNumber);
   }
 }
 
