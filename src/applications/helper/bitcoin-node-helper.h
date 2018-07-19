@@ -126,7 +126,6 @@ protected:
   std::map<Ipv4Address, double>                       m_peersUploadSpeeds;    //!< The upload speeds of the peers
   nodeInternetSpeeds                                  m_internetSpeeds;       //!< The internet speeds of the node
   nodeStatistics                                      *m_nodeStats;           //!< The struct holding the node statistics
-  std::map<Ipv4Address, peerStatistics>                m_peerStatistics;                 //!< map holding message statistics for each of this node's peers. Used to order peers by some metric.
 
   std::vector<Ipv4Address> m_outPeers;
   uint64_t m_txToCreate;

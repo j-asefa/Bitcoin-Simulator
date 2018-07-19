@@ -149,6 +149,22 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_r = r;
   m_systemId = systemId;
   m_outPeers = outPeers;
+ // m_peerStatistics = peerstatistics;
+  if (m_protocol == PREFERRED_DESTINATIONS) {
+      peerStatistics peerstats;
+      peerstats.numUsefulInvReceived = 0;
+      peerstats.numUselessInvReceived = 0;
+      peerstats.numGetDataReceived = 0;
+      peerstats.numGetDataSent = 0;
+      peerstats.connectionLength = 0;
+      peerstats.usefulInvRate = 0;
+      for(auto &peer : m_peersAddresses)
+        m_peerStatistics.insert(std::pair<Ipv4Address, peerStatistics>(peer, peerstats));
+
+      // set up preferred peers
+      for (int i = 0; i < 4; i++)
+          m_preferredPeers.push_back(m_peersAddresses.at(i));
+    }
 }
 
 void
@@ -291,7 +307,7 @@ BitcoinNode::ConstructDandelionLinks (void)
     {
         std::random_device rd; 
 		std::mt19937 eng(rd()); 
-		std::uniform_int_distribution<> distr(0, m_peersAddresses.size()); 
+		std::uniform_int_distribution<> distr(0, m_peersAddresses.size() - 1); 
 		int outgoingPeer = distr(eng);
 
         while (m_DandelionLinks.find(m_peersAddresses.at(outgoingPeer)) != m_DandelionLinks.end()) 
@@ -306,20 +322,30 @@ BitcoinNode::ConstructDandelionLinks (void)
 void
 BitcoinNode::UpdatePreferredPeersList(void) 
 {
-    double maxUsefulInvRate = m_peersAddresses.begin()->second.usefulInvRate; 
+    double maxUsefulInvRate = 0;
+    if (m_peerStatistics.empty())
+        NS_FATAL_ERROR ("Error: m_peerStatistics is empty"); // die for now. Should be set up in bitcoin-node-helper.cc
+    else 
+        maxUsefulInvRate = m_peerStatistics.begin()->second.usefulInvRate; 
+
     for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i) 
     {
+        if (m_peerStatistics[*i].usefulInvRate > maxUsefulInvRate) {
             
+        }
     }
 }
 
 Ipv4Address
 BitcoinNode::ChooseFromPreferredPeers(void) 
 {
+    if (m_peerStatistics.empty())
+        NS_FATAL_ERROR ("Error: m_peerStatistics is empty"); // die for now. Should be set up in bitcoin-node-helper.cc
     std::random_device rd; 
     std::mt19937 eng(rd()); 
-    std::uniform_int_distribution<> distr(0, m_preferredPeers.size()); 
+    std::uniform_int_distribution<> distr(0, m_preferredPeers.size() - 1); 
     int outgoingPeer = distr(eng);
+    //std::cout << "outgoing peer: " << outgoingPeer << " preferred peers size: " << m_preferredPeers.size() << std::endl;
     return m_preferredPeers.at(outgoingPeer);
 }
 
@@ -510,7 +536,6 @@ BitcoinNode::AnnounceMode (void)
   }
 
   Simulator::Schedule (Seconds(100), &BitcoinNode::ScheduleNextTransactionEvent, this);
-
 }
 
 int MurmurHash3Mixer(int key) // TODO a better hash function
@@ -605,6 +630,7 @@ BitcoinNode::EmitBlock (void)
 
   m_nodeStats->blocksRelayed+=1;
 
+  std::cout << "insdie emit block\n";
   ScheduleNextBlockEvent();
 }
 
@@ -622,9 +648,7 @@ BitcoinNode::EmitTransaction (void)
 
   stringStream << m_nodeStats->txCreated << "/" << nodeId;
   std::string transactionId = stringStream.str();
-
   AdvertiseTransactionInvWrapper(InetSocketAddress::ConvertFrom(m_local).GetIpv4(), transactionId, 0);
-
   SaveTxData(transactionId);
 
   if (m_nodeStats->txCreated >= m_txToCreate)
@@ -725,6 +749,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
             }
             case INV:
             {
+              std::cout << "start of INV case\n";
               m_nodeStats->invReceivedMessages += 1;
               std::vector<std::string>            requestTxs;
               for (int j=0; j<d["inv"].Size(); j++)
@@ -775,6 +800,7 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
               d.AddMember("transactions", array, d.GetAllocator());
               SendMessage(INV, GET_DATA, d, from);
+              std::cout << "end of INV case\n";
               //if (m_protocol == PREFERRED_DESTINATIONS)
               //    m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent++;
               break;
@@ -891,11 +917,13 @@ BitcoinNode::AdvertiseNewTransactionInvDandelion(Address from, const std::string
     NS_LOG_FUNCTION (this);
     auto delay = 0;
     Ipv4Address outPeer = m_DandelionLinks[InetSocketAddress::ConvertFrom(from).GetIpv4()];
-    if (std::find(m_outPeers.begin(), m_outPeers.end(), outPeer) != m_outPeers.end())
+    if (std::find(m_outPeers.begin(), m_outPeers.end(), outPeer) != m_outPeers.end()) 
         delay = PoissonNextSend(invIntervalSeconds);
-    else
+    else 
         delay = PoissonNextSend(invIntervalSeconds * 2);
+    //std::cout << "before send inv to node\n";
     Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, outPeer, transactionHash, hopNumber);
+    //std::cout << "after send inv to node\n";
 }
 
 void
@@ -907,7 +935,7 @@ BitcoinNode::AdvertiseNewTransactionInvPreferredPeers(Address from, const std::s
     Ipv4Address peer1 = ChooseFromPreferredPeers();
 
     // make sure we're not sending to our from peer
-    while (peer1.Get() == from.Get())
+    while (peer1.Get() == InetSocketAddress::ConvertFrom(from).GetIpv4().Get())
         peer1 = ChooseFromPreferredPeers();
     Ipv4Address peer2 = ChooseFromPreferredPeers();
 
@@ -939,13 +967,24 @@ BitcoinNode::AdvertiseNewTransactionInvFilters(Address from, const std::string t
     {
         if (*i != InetSocketAddress::ConvertFrom(from).GetIpv4())
         {
+            auto delay = 0;
             if (filterBegin[*i] < filterEnd[*i]) { 
-                if (filterBegin[*i] < bucket && bucket < filterEnd[*i]) 
-                  Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+                if (filterBegin[*i] < bucket && bucket < filterEnd[*i]) {
+                    if (std::find(m_outPeers.begin(), m_outPeers.end(), *i) != m_outPeers.end())
+                        delay = PoissonNextSend(invIntervalSeconds);
+                    else
+                        delay = PoissonNextSend(invIntervalSeconds * 2);
+                    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+                }
             } else {
                 // special case where we have overlap > 0 and the filter has wrapped around modulo 1000
-                if (bucket < filterEnd[*i] || bucket > filterBegin[*i])
-                  Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+                if (bucket < filterEnd[*i] || bucket > filterBegin[*i]) {
+                    if (std::find(m_outPeers.begin(), m_outPeers.end(), *i) != m_outPeers.end())
+                        delay = PoissonNextSend(invIntervalSeconds);
+                    else
+                        delay = PoissonNextSend(invIntervalSeconds * 2);
+                    Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, *i, transactionHash, hopNumber);
+                }
             }
         }
     }
@@ -953,11 +992,12 @@ BitcoinNode::AdvertiseNewTransactionInvFilters(Address from, const std::string t
 
 void
 BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHash, int hopNumber) {
-  if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end())
+  if (std::find(peersKnowTx[transactionHash].begin(), peersKnowTx[transactionHash].end(), receiver) != peersKnowTx[transactionHash].end()) 
     return;
 
   rapidjson::Document inv;
   inv.SetObject();
+
 
   rapidjson::Value value;
   value.SetString("tx");
@@ -965,6 +1005,7 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
 
   value = INV;
   inv.AddMember("message", value, inv.GetAllocator());
+
 
   rapidjson::Value array(rapidjson::kArrayType);
   value.SetString(transactionHash.c_str(), transactionHash.size(), inv.GetAllocator());
@@ -974,17 +1015,24 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   value = hopNumber;
   inv.AddMember("hop", value, inv.GetAllocator());
 
+
   rapidjson::StringBuffer invInfo;
   rapidjson::Writer<rapidjson::StringBuffer> invWriter(invInfo);
   inv.Accept(invWriter);
   const uint8_t delimiter[] = "#";
+  std::cout << "peers sockets size: " << m_peersSockets.size() << std::endl;
+  std::cout << "receiver address: " << receiver.Get() << std::endl;
+  //std::cout << "socket info: " << m_peersSockets[receiver]->GetIpv6Tclass << std::endl;
   m_peersSockets[receiver]->Send (reinterpret_cast<const uint8_t*>(invInfo.GetString()), invInfo.GetSize(), 0);
   m_peersSockets[receiver]->Send (delimiter, 1, 0);
+
 
   m_nodeStats->invSentMessages += 1;
   m_nodeStats->invSentBytes += m_bitcoinMessageHeader + m_countBytes + 1*m_inventorySizeBytes;
 
+
   peersKnowTx[transactionHash].push_back(receiver);
+
 }
 
 void
