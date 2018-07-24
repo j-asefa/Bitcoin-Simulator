@@ -149,6 +149,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_r = r;
   m_systemId = systemId;
   m_outPeers = outPeers;
+  m_overlap = overlap;
  // m_peerStatistics = peerstatistics;
   if (m_protocol == PREFERRED_DESTINATIONS) {
       peerStatistics peerstats;
@@ -345,7 +346,6 @@ BitcoinNode::ChooseFromPreferredPeers(void)
     std::mt19937 eng(rd()); 
     std::uniform_int_distribution<> distr(0, m_preferredPeers.size() - 1); 
     int outgoingPeer = distr(eng);
-    //std::cout << "outgoing peer: " << outgoingPeer << " preferred peers size: " << m_preferredPeers.size() << std::endl;
     return m_preferredPeers.at(outgoingPeer);
 }
 
@@ -353,15 +353,25 @@ void
 BitcoinNode::ConstructOutgoingFilters (void)
 {
   const uint8_t delimiter[] = "#";
-  uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
+  uint32_t filterLength = (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) ? FILTER_BASE_NUMBERING / m_numberOfPeers : FILTER_BASE_NUMBERING / m_numberOfPeers + 1;
   uint32_t from = 0;
-  uint32_t to = filterLength - 1;
+  uint32_t to = m_numberOfPeers > 1 ? (filterLength - 1) * (1 + m_overlap) : filterLength - 1; // no need for overlap when we only have 1 peer
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
       filterBegin[*i] = from;
       filterEnd[*i] = to;
       from += filterLength;
-      to += ((int) (filterLength * (1 + m_overlap))) % FILTER_BASE_NUMBERING;
+      if (to + (filterLength * (1 + m_overlap)) > FILTER_BASE_NUMBERING) {
+          if (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) {
+              to += ((int) (filterLength * (1 + m_overlap)));
+              to = to % FILTER_BASE_NUMBERING;
+          } else {
+              to += filterLength;
+              to = to % FILTER_BASE_NUMBERING;
+          }
+      } else {
+              to += ((int) (filterLength * (1 + m_overlap)));
+      }
   }
 }
 
@@ -369,9 +379,9 @@ void
 BitcoinNode::RequestIncomingFilters (void)
 {
   const uint8_t delimiter[] = "#";
-  uint32_t filterLength = FILTER_BASE_NUMBERING / m_numberOfPeers; // TODO: confirm this does not leave some nodes with no txs
+  uint32_t filterLength = (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) ? FILTER_BASE_NUMBERING / m_numberOfPeers : FILTER_BASE_NUMBERING / m_numberOfPeers + 1;
   uint32_t from = 0;
-  uint32_t to = filterLength - 1;
+  uint32_t to = m_numberOfPeers > 1 ? (filterLength - 1) * (1 + m_overlap) : filterLength - 1; // no need for overlap when we only have 1 peer
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
     rapidjson::Document filterData;
@@ -397,7 +407,17 @@ BitcoinNode::RequestIncomingFilters (void)
     m_peersSockets[*i]->Send(delimiter, 1, 0);
     
     from += filterLength;
-    to += ((int) (filterLength * (1 + m_overlap))) % FILTER_BASE_NUMBERING;
+    if (to + (filterLength * (1 + m_overlap)) > FILTER_BASE_NUMBERING) {
+      if (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) {
+          to += ((int) (filterLength * (1 + m_overlap)));
+          to = to % FILTER_BASE_NUMBERING;
+      } else {
+          to += filterLength;
+          to = to % FILTER_BASE_NUMBERING;
+      }
+    } else {
+          to += ((int) (filterLength * (1 + m_overlap)));
+    }
   }
 }
 
@@ -630,7 +650,6 @@ BitcoinNode::EmitBlock (void)
 
   m_nodeStats->blocksRelayed+=1;
 
-  std::cout << "insdie emit block\n";
   ScheduleNextBlockEvent();
 }
 
@@ -749,7 +768,6 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
             }
             case INV:
             {
-              std::cout << "start of INV case\n";
               m_nodeStats->invReceivedMessages += 1;
               std::vector<std::string>            requestTxs;
               for (int j=0; j<d["inv"].Size(); j++)
@@ -800,7 +818,6 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
 
               d.AddMember("transactions", array, d.GetAllocator());
               SendMessage(INV, GET_DATA, d, from);
-              std::cout << "end of INV case\n";
               //if (m_protocol == PREFERRED_DESTINATIONS)
               //    m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numGetDataSent++;
               break;
@@ -921,9 +938,7 @@ BitcoinNode::AdvertiseNewTransactionInvDandelion(Address from, const std::string
         delay = PoissonNextSend(invIntervalSeconds);
     else 
         delay = PoissonNextSend(invIntervalSeconds * 2);
-    //std::cout << "before send inv to node\n";
     Simulator::Schedule (Seconds(delay), &BitcoinNode::SendInvToNode, this, outPeer, transactionHash, hopNumber);
-    //std::cout << "after send inv to node\n";
 }
 
 void
@@ -1020,9 +1035,6 @@ BitcoinNode::SendInvToNode(Ipv4Address receiver, const std::string transactionHa
   rapidjson::Writer<rapidjson::StringBuffer> invWriter(invInfo);
   inv.Accept(invWriter);
   const uint8_t delimiter[] = "#";
-  std::cout << "peers sockets size: " << m_peersSockets.size() << std::endl;
-  std::cout << "receiver address: " << receiver.Get() << std::endl;
-  //std::cout << "socket info: " << m_peersSockets[receiver]->GetIpv6Tclass << std::endl;
   m_peersSockets[receiver]->Send (reinterpret_cast<const uint8_t*>(invInfo.GetString()), invInfo.GetSize(), 0);
   m_peersSockets[receiver]->Send (delimiter, 1, 0);
 

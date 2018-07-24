@@ -126,6 +126,7 @@ BitcoinNodeHelper::SetProperties (uint64_t txToCreate, enum ProtocolType protoco
 {
   m_txToCreate = txToCreate;
   m_protocol = protocol;
+
   m_overlap = overlap;
   m_mode = mode;
   m_netGroups = netGroups;
