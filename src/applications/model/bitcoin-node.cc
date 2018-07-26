@@ -21,6 +21,7 @@
 #include "bitcoin-node.h"
 #include "../helper/bitcoin-node-helper.h"
 #include <random>
+#include <math.h>
 
 namespace ns3 {
 
@@ -355,23 +356,17 @@ BitcoinNode::ConstructOutgoingFilters (void)
   const uint8_t delimiter[] = "#";
   uint32_t filterLength = (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) ? FILTER_BASE_NUMBERING / m_numberOfPeers : FILTER_BASE_NUMBERING / m_numberOfPeers + 1;
   uint32_t from = 0;
-  uint32_t to = m_numberOfPeers > 1 ? (filterLength - 1) * (1 + m_overlap) : filterLength - 1; // no need for overlap when we only have 1 peer
+  uint32_t to = m_numberOfPeers > 1 ? ceil((filterLength - 1) * (1 + m_overlap)) : filterLength - 1; // no need for overlap when we only have 1 peer
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
       filterBegin[*i] = from;
       filterEnd[*i] = to;
+      std::cout << "peer has start filter: " << from << " and end filter: " << to << " with overlap " << m_overlap << std::endl;
       from += filterLength;
-      if (to + (filterLength * (1 + m_overlap)) > FILTER_BASE_NUMBERING) {
-          if (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) {
-              to += ((int) (filterLength * (1 + m_overlap)));
-              to = to % FILTER_BASE_NUMBERING;
-          } else {
-              to += filterLength;
-              to = to % FILTER_BASE_NUMBERING;
-          }
-      } else {
-              to += ((int) (filterLength * (1 + m_overlap)));
-      }
+      to += filterLength;
+      if (to > FILTER_BASE_NUMBERING && m_overlap == 0)
+          to = FILTER_BASE_NUMBERING - 1;
+      to = to % FILTER_BASE_NUMBERING;
   }
 }
 
@@ -381,7 +376,7 @@ BitcoinNode::RequestIncomingFilters (void)
   const uint8_t delimiter[] = "#";
   uint32_t filterLength = (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) ? FILTER_BASE_NUMBERING / m_numberOfPeers : FILTER_BASE_NUMBERING / m_numberOfPeers + 1;
   uint32_t from = 0;
-  uint32_t to = m_numberOfPeers > 1 ? (filterLength - 1) * (1 + m_overlap) : filterLength - 1; // no need for overlap when we only have 1 peer
+  uint32_t to = m_numberOfPeers > 1 ? ceil((filterLength - 1) * (1 + m_overlap)) : filterLength - 1; // no need for overlap when we only have 1 peer
   for (std::vector<Ipv4Address>::const_iterator i = m_peersAddresses.begin(); i != m_peersAddresses.end(); ++i)
   {
     rapidjson::Document filterData;
@@ -407,17 +402,10 @@ BitcoinNode::RequestIncomingFilters (void)
     m_peersSockets[*i]->Send(delimiter, 1, 0);
     
     from += filterLength;
-    if (to + (filterLength * (1 + m_overlap)) > FILTER_BASE_NUMBERING) {
-      if (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) {
-          to += ((int) (filterLength * (1 + m_overlap)));
-          to = to % FILTER_BASE_NUMBERING;
-      } else {
-          to += filterLength;
-          to = to % FILTER_BASE_NUMBERING;
-      }
-    } else {
-          to += ((int) (filterLength * (1 + m_overlap)));
-    }
+    to += filterLength;
+    if (to > FILTER_BASE_NUMBERING && m_overlap == 0)
+        to = FILTER_BASE_NUMBERING - 1;
+    to = to % FILTER_BASE_NUMBERING;
   }
 }
 
@@ -776,6 +764,9 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 int   hopNumber = d["hop"].GetInt();
                 peersKnowTx[parsedInv].push_back(InetSocketAddress::ConvertFrom(from).GetIpv4());
                 if(std::find(knownTxHashes.begin(), knownTxHashes.end(), parsedInv) != knownTxHashes.end()) {
+                    // TODO: this is an attack vector, because we progressively increase trust in the peer that shows us the most 
+                    // INV's that we don't have. But INV's may be invalid, thus allowing an attacker to become our most trusted peer.
+                    // need some way to validate.
                     if (m_protocol == PREFERRED_DESTINATIONS) {
                         m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUselessInvReceived++; 
                         m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].usefulInvRate = ((double) m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUsefulInvReceived) / m_peerStatistics[InetSocketAddress::ConvertFrom(from).GetIpv4()].numUselessInvReceived; 
