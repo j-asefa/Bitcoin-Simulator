@@ -144,7 +144,6 @@ main (int argc, char *argv[])
 
   BitcoinTopologyHelper bitcoinTopologyHelper (systemCount, totalNoNodes, publicIPNodes, minConnectionsPerNode,
                                                maxConnectionsPerNode, systemId);
-
   // Install stack on Grid
   InternetStackHelper stack;
   bitcoinTopologyHelper.InstallStack (stack);
@@ -160,6 +159,7 @@ main (int argc, char *argv[])
 
 
   std::cout << "Total nodes: " << totalNoNodes << "\n";
+
   //Install simple nodes
   BitcoinNodeHelper bitcoinNodeHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), bitcoinPort),
                                         nodesConnections[0], peersDownloadSpeeds[0],  peersUploadSpeeds[0], nodesInternetSpeeds[0], stats, r);
@@ -205,8 +205,8 @@ main (int argc, char *argv[])
     std::cout << "Setup time = " << tStartSimulation - tStart << "s\n";
     std::cout << "Total nodes: " << totalNoNodes << "\n";
   }
-
   Simulator::Stop (Minutes (stop + 0.1));
+
   Simulator::Run ();
   Simulator::Destroy ();
 
@@ -391,10 +391,36 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
 
   }
 
+  //for (std::map<int, std::vector<double>>::iterator txTimes=allTxRelayTimes.begin();
+  //  txTimes!=allTxRelayTimes.end(); ++txTimes)
+  //{
+  //    std::cout << "tx time size: " << txTimes->second.size() << std::endl;
+  //}
+
+  std::vector<double> onePercentRelayTimes;
+  std::vector<double> fivePercentRelayTimes;
+  std::vector<double> tenPercentRelayTimes;
+  std::vector<double> fifteenPercentRelayTimes;
+  std::vector<double> twentyPercentRelayTimes;
+  std::vector<double> twentyfivePercentRelayTimes;
+  std::vector<double> thirtyPercentRelayTimes;
+  std::vector<double> thirtyfivePercentRelayTimes;
+  std::vector<double> fortyPercentRelayTimes;
+  std::vector<double> fortyfivePercentRelayTimes;
   std::vector<double> fiftyPercentRelayTimes;
+  std::vector<double> fiftyfivePercentRelayTimes;
+  std::vector<double> sixtyPercentRelayTimes;
+  std::vector<double> sixtyfivePercentRelayTimes;
+  std::vector<double> seventyPercentRelayTimes;
   std::vector<double> seventyFivePercentRelayTimes;
+  std::vector<double> eightyPercentRelayTimes;
+  std::vector<double> eightyfivePercentRelayTimes;
+  std::vector<double> ninetyPercentRelayTimes;
+  std::vector<double> ninetyfivePercentRelayTimes;
   std::vector<double> ninetyNinePercentRelayTimes;
   std::vector<double> fullRelayTimes;
+
+  std::vector<double> allHundredPercentTimes;
 
   for (std::map<int, std::vector<double>>::iterator txTimes=allTxRelayTimes.begin();
     txTimes!=allTxRelayTimes.end(); ++txTimes)
@@ -402,34 +428,324 @@ void PrintStatsForEachNode (nodeStatistics *stats, int totalNodes, int publicIPN
     std::vector<double> relayTimes = txTimes->second;
     std::sort(relayTimes.begin(), relayTimes.end());
 
+    allHundredPercentTimes.push_back(relayTimes.back());
+
+    /*uint64_t txhash = txTimes->first;
     int wasRelayedTimes = relayTimes.size();
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.01) {
+      continue;
+    }
+
+    onePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.01) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.05) {
+      continue;
+    }
+
+    fivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.05) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.1) {
+      continue;
+    }
+
+    tenPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.1) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.15) {
+      continue;
+    }
+
+    fifteenPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.15) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.2) {
+      continue;
+    }
+
+    twentyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.2) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.25) {
+      continue;
+    }
+
+    twentyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.25) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.30) {
+      continue;
+    }
+
+    thirtyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.30) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.35) {
+      continue;
+    }
+
+    thirtyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.35) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.40) {
+      continue;
+    }
+
+    fortyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.40) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.45) {
+      continue;
+    }
+
+    fortyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.45) - relayTimes.front());
 
     if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.5) {
       continue;
     }
 
-    fiftyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes / 2) - relayTimes.front());
+    fiftyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.5) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.55) {
+      continue;
+    }
+
+    fiftyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.55) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.60) {
+      continue;
+    }
+
+    sixtyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.60) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.65) {
+      continue;
+    }
+
+    sixtyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.65) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.70) {
+      continue;
+    }
+
+    seventyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.70) - relayTimes.front());
 
     if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.75) {
       continue;
     }
-    seventyFivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 3 / 4) - relayTimes.front());
+    seventyFivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.75) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.80) {
+      continue;
+    }
+
+    eightyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.80) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.85) {
+      continue;
+    }
+
+    eightyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.85) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.90) {
+      continue;
+    }
+
+    ninetyPercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.90) - relayTimes.front());
+
+    if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.95) {
+      continue;
+    }
+
+    ninetyfivePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.95) - relayTimes.front());
 
     if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes) * 0.99) {
       continue;
     }
 
-    ninetyNinePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 99 / 100) - relayTimes.front());
+    ninetyNinePercentRelayTimes.push_back(relayTimes.at(wasRelayedTimes * 0.99) - relayTimes.front());
 
     if (wasRelayedTimes < (totalNodes - blocksOnlyPrivateIpNodes)) {
       continue;
     }
 
-    fullRelayTimes.push_back(relayTimes.back() - relayTimes.front());
+    fullRelayTimes.push_back(relayTimes.back() - relayTimes.front());*/
   }
 
+  for (int i = 0; i < allHundredPercentTimes.size(); i++)
+  {
+
+    /*int fivepercentTime = floor(0.05 * relayTimes.back());
+    int seventyfivepercentTime = floor(0.75 * relayTimes.back());
+    std::cout << "fivepercent time: " << fivepercentTime << std::endl;
+    std::cout << "seventyfive percent time: " << seventyfivepercentTime << std::endl;
+    std::cout << "hundred percent time: " << relayTimes.back() << std::endl;
+    std::cout << "total vector size: " << wasRelayedTimes << std::endl;
+    std::cout << std::endl;*/
+
+    //std::cout << "was relayed times: " << wasRelayedTimes << std::endl;
+
+    if (allHundredPercentTimes[i] <  0.01 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        onePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.05 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.1 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        tenPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.15 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fifteenPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.2 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        twentyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.25 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        twentyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.3 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        thirtyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.35 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        thirtyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.4 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fortyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.45 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fortyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.5 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fiftyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.55 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fiftyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.6 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        sixtyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.65 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        sixtyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.7 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        seventyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.75 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        seventyFivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.8 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        eightyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.85 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        eightyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <  0.9 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        ninetyPercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <=  0.95 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        ninetyfivePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+
+
+    if (allHundredPercentTimes[i] <=  0.99 * *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        ninetyNinePercentRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+
+    if (allHundredPercentTimes[i] <= *std::max_element(allHundredPercentTimes.begin(),allHundredPercentTimes.end())) {
+        fullRelayTimes.push_back(allHundredPercentTimes[i]);
+    }
+  }
+
+  std::cout << "Average 1% relay time: " << accumulate(onePercentRelayTimes.begin(), onePercentRelayTimes.end(), 0.0) / onePercentRelayTimes.size() << ", txs: " << onePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 5% relay time: " << accumulate(fivePercentRelayTimes.begin(), fivePercentRelayTimes.end(), 0.0) / fivePercentRelayTimes.size() << ", txs: " << fivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 10% relay time: " << accumulate(tenPercentRelayTimes.begin(), tenPercentRelayTimes.end(), 0.0) / tenPercentRelayTimes.size() << ", txs: " << tenPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 15% relay time: " << accumulate(fifteenPercentRelayTimes.begin(), fifteenPercentRelayTimes.end(), 0.0) / fifteenPercentRelayTimes.size() << ", txs: " << fifteenPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 20% relay time: " << accumulate(twentyPercentRelayTimes.begin(), twentyPercentRelayTimes.end(), 0.0) / twentyPercentRelayTimes.size() << ", txs: " << twentyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 25% relay time: " << accumulate(twentyfivePercentRelayTimes.begin(), twentyfivePercentRelayTimes.end(), 0.0) / twentyfivePercentRelayTimes.size() << ", txs: " << twentyfivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 30% relay time: " << accumulate(thirtyPercentRelayTimes.begin(), thirtyPercentRelayTimes.end(), 0.0) / thirtyPercentRelayTimes.size() << ", txs: " << thirtyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 35% relay time: " << accumulate(thirtyfivePercentRelayTimes.begin(), thirtyfivePercentRelayTimes.end(), 0.0) / thirtyfivePercentRelayTimes.size() << ", txs: " << thirtyfivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 40% relay time: " << accumulate(fortyPercentRelayTimes.begin(), fortyPercentRelayTimes.end(), 0.0) / fortyPercentRelayTimes.size() << ", txs: " << fortyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 45% relay time: " << accumulate(fortyfivePercentRelayTimes.begin(), fortyfivePercentRelayTimes.end(), 0.0) / fortyfivePercentRelayTimes.size() << ", txs: " << fortyfivePercentRelayTimes.size() << "\n";
+
   std::cout << "Average 50% relay time: " << accumulate(fiftyPercentRelayTimes.begin(), fiftyPercentRelayTimes.end(), 0.0) / fiftyPercentRelayTimes.size() << ", txs: " << fiftyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 55% relay time: " << accumulate(fiftyfivePercentRelayTimes.begin(), fiftyfivePercentRelayTimes.end(), 0.0) / fiftyfivePercentRelayTimes.size() << ", txs: " << fiftyfivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 60% relay time: " << accumulate(sixtyPercentRelayTimes.begin(), sixtyPercentRelayTimes.end(), 0.0) / sixtyPercentRelayTimes.size() << ", txs: " << sixtyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 65% relay time: " << accumulate(sixtyfivePercentRelayTimes.begin(), sixtyfivePercentRelayTimes.end(), 0.0) / sixtyfivePercentRelayTimes.size() << ", txs: " << sixtyfivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 70% relay time: " << accumulate(seventyPercentRelayTimes.begin(), seventyPercentRelayTimes.end(), 0.0) / seventyPercentRelayTimes.size() << ", txs: " << seventyPercentRelayTimes.size() << "\n";
+
   std::cout << "Average 75% relay time: " << accumulate(seventyFivePercentRelayTimes.begin(), seventyFivePercentRelayTimes.end(), 0.0) / seventyFivePercentRelayTimes.size() << ", txs: " << seventyFivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 80% relay time: " << accumulate(eightyPercentRelayTimes.begin(), eightyPercentRelayTimes.end(), 0.0) / eightyPercentRelayTimes.size() << ", txs: " << eightyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 85% relay time: " << accumulate(eightyfivePercentRelayTimes.begin(), eightyfivePercentRelayTimes.end(), 0.0) / eightyfivePercentRelayTimes.size() << ", txs: " << eightyfivePercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 90% relay time: " << accumulate(ninetyPercentRelayTimes.begin(), ninetyPercentRelayTimes.end(), 0.0) / ninetyPercentRelayTimes.size() << ", txs: " << ninetyPercentRelayTimes.size() << "\n";
+
+  std::cout << "Average 95% relay time: " << accumulate(ninetyfivePercentRelayTimes.begin(), ninetyfivePercentRelayTimes.end(), 0.0) / ninetyfivePercentRelayTimes.size() << ", txs: " << ninetyfivePercentRelayTimes.size() << "\n";
+
   std::cout << "Average 99% relay time: " << accumulate(ninetyNinePercentRelayTimes.begin(), ninetyNinePercentRelayTimes.end(), 0.0) / ninetyNinePercentRelayTimes.size() << ", txs: " << ninetyNinePercentRelayTimes.size() << "\n";
   std::cout << "Average 100% relay time: " << accumulate(fullRelayTimes.begin(), fullRelayTimes.end(), 0.0) / fullRelayTimes.size() << ", txs: " << fullRelayTimes.size() << "\n";
   std::cout << "Generated transactions: " << allTxRelayTimes.size() << "\n";
