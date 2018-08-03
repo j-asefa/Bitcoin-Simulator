@@ -151,7 +151,15 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
   m_systemId = systemId;
   m_outPeers = outPeers;
   m_overlap = overlap;
- // m_peerStatistics = peerstatistics;
+  if (m_protocol == RECONCILIATION) 
+  {
+      for (auto peer: m_peersAddresses) 
+      {
+          std::vector<std::string> s;
+          m_peerReconciliationSets.insert(std::pair<Ipv4Address,std::vector<std::string>>(peer, s));
+          m_reconcilePeers.push_back(peer);
+      }
+  }
   if (m_protocol == PREFERRED_DESTINATIONS) {
       peerStatistics peerstats;
       peerstats.numUsefulInvReceived = 0;
@@ -160,7 +168,7 @@ BitcoinNode::SetProperties (uint64_t txToCreate, enum ProtocolType protocol, enu
       peerstats.numGetDataSent = 0;
       peerstats.connectionLength = 0;
       peerstats.usefulInvRate = 0;
-      for(auto &peer : m_peersAddresses) {
+      for(auto peer : m_peersAddresses) {
         m_peerStatistics.insert(std::pair<Ipv4Address, peerStatistics>(peer, peerstats));
       }
 
@@ -326,6 +334,35 @@ BitcoinNode::ConstructDandelionLinks (void)
 }
 
 void
+BitcoinNode::ReconcileWithNewPeer(void) {
+    const uint8_t delimiter[] = "#";
+    Ipv4Address peer = m_reconcilePeers.front();
+    m_reconcilePeers.pop_front();
+    size_t set_size = m_peerReconciliationSets[peer].size();
+
+    rapidjson::Document reconcileData;
+    rapidjson::Value value;
+    value = RECONCILE_TX_REQUEST;
+    reconcileData.SetObject();
+    reconcileData.AddMember("message", value, reconcileData.GetAllocator());
+
+    rapidjson::Value setSize;
+
+    setSize.SetInt(set_size);
+
+    reconcileData.AddMember("setSize", setSize, reconcileData.GetAllocator());
+
+    rapidjson::StringBuffer reconcileInfo;
+    rapidjson::Writer<rapidjson::StringBuffer> reconcileWriter(reconcileInfo);
+    reconcileData.Accept(reconcileWriter);
+
+    m_peersSockets[peer]->Send(reinterpret_cast<const uint8_t*>(reconcileInfo.GetString()), reconcileInfo.GetSize(), 0);
+    m_peersSockets[peer]->Send(delimiter, 1, 0);
+    m_reconcilePeers.push_back(peer);
+    std::cout << " reconciled with new peer\n";
+}
+
+void
 BitcoinNode::UpdatePreferredPeersList(void) 
 {
     double maxUsefulInvRate = 0;
@@ -369,7 +406,6 @@ BitcoinNode::ChooseFromPreferredPeers(void)
 void
 BitcoinNode::ConstructOutgoingFilters (void)
 {
-  const uint8_t delimiter[] = "#";
   uint32_t filterLength = (FILTER_BASE_NUMBERING % m_numberOfPeers == 0) ? FILTER_BASE_NUMBERING / m_numberOfPeers : FILTER_BASE_NUMBERING / m_numberOfPeers + 1;
   uint32_t from = 0;
   uint32_t to = m_numberOfPeers > 1 ? ceil((filterLength - 1) * (1 + m_overlap)) : filterLength - 1; // no need for overlap when we only have 1 peer
@@ -559,6 +595,7 @@ BitcoinNode::AnnounceMode (void)
   }
 
   Simulator::Schedule (Seconds(100), &BitcoinNode::ScheduleNextTransactionEvent, this);
+
 }
 
 int MurmurHash3Mixer(int key) // TODO a better hash function
@@ -605,6 +642,7 @@ BitcoinNode::ScheduleNextTransactionEvent (void)
 
   auto delay = 1;
   EventId m_nextTransactionEvent = Simulator::Schedule (Seconds(delay), &BitcoinNode::EmitTransaction, this);
+  Simulator::Schedule (Seconds(60), &BitcoinNode::ReconcileWithNewPeer, this);
 }
 
 
@@ -769,6 +807,82 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 filterEnd[InetSocketAddress::ConvertFrom(from).GetIpv4()] = d["newFilterEnd"].GetInt();
                 break;
             }
+            case RECONCILE_TX_REQUEST:
+            {
+                size_t set =  d["setSize"].GetInt();
+                rapidjson::Document reconcileData;
+                reconcileData.SetObject();
+
+                rapidjson::Value msg;
+                rapidjson::Value txArray(rapidjson::kArrayType);
+
+                rapidjson::Document::AllocatorType& allocator = reconcileData.GetAllocator();
+
+                msg = RECONCILE_TX_RESPONSE;
+                reconcileData.AddMember("message", msg, allocator);
+
+                Ipv4Address peer = InetSocketAddress::ConvertFrom(from).GetIpv4();
+                std::cout << " inside reconcile case\n";
+                for (auto it = m_peerReconciliationSets[peer].begin(); it != m_peerReconciliationSets[peer].end(); ++it)
+                {
+                    rapidjson::Value txhash;
+                    txhash.SetString(it->c_str(), it->length(), allocator);
+                    txArray.PushBack(txhash,allocator);
+                }
+
+                // try to send as one batch
+                reconcileData.AddMember("transactions", txArray, allocator);
+                rapidjson::StringBuffer reconcileInfo;
+                rapidjson::Writer<rapidjson::StringBuffer> reconcileWriter(reconcileInfo);
+                reconcileData.Accept(reconcileWriter);
+
+                const uint8_t delimiter[] = "#";
+                m_peersSockets[peer]->Send(reinterpret_cast<const uint8_t*>(reconcileInfo.GetString()), reconcileInfo.GetSize(), 0);
+                m_peersSockets[peer]->Send(delimiter, 1, 0);
+
+                m_peerReconciliationSets[peer].clear();
+
+                //move the reconcile initiator to back of "queue"
+                m_reconcilePeers.remove(peer); 
+                m_reconcilePeers.push_back(peer);
+                std::cout << " inside reconcile case at the end\n";
+                break;
+            }
+            case RECONCILE_TX_RESPONSE:
+            {
+                std::set<std::string> nodeBtransactions;
+                for (rapidjson::Value::ConstValueIterator itr = d["transactions"].Begin(); itr != d["transactions"].End(); ++itr)
+                {
+                    if (std::find(knownTxHashes.begin(), knownTxHashes.end(), itr->GetString()) == knownTxHashes.end()) 
+                    {
+                        rapidjson::Document reconcileData;
+                        reconcileData.SetObject();
+
+                        rapidjson::Value txHash;
+                        txHash.SetString(itr->GetString(), itr->GetStringLength(), reconcileData.GetAllocator());
+                        reconcileData.AddMember("txHash", txHash, reconcileData.GetAllocator());
+
+                        SendMessage(INV, GET_DATA, reconcileData, from);
+                    }
+                    nodeBtransactions.insert(itr->GetString());
+                }
+
+                for (auto it = knownTxHashes.begin(); it != knownTxHashes.end(); ++it) 
+                {
+                    if (std::find(nodeBtransactions.begin(), nodeBtransactions.end(), *it) == nodeBtransactions.end()) 
+                    {
+                        rapidjson::Document reconcileData;
+                        reconcileData.SetObject();
+
+                        rapidjson::Value txHash;
+                        txHash.SetString(it->c_str(), it->length(), reconcileData.GetAllocator());
+                        reconcileData.AddMember("txHash", txHash, reconcileData.GetAllocator());
+
+                        SendMessage(GET_DATA, INV, reconcileData, from);
+                    }
+                }
+                break;
+            }
             case INV:
             {
               m_nodeStats->invReceivedMessages += 1;
@@ -908,6 +1022,10 @@ BitcoinNode::AdvertiseTransactionInvWrapper (Address from, const std::string tra
         {
 			AdvertiseNewTransactionInvDandelion(from, transactionHash, hopNumber);
             break;
+        }
+        case RECONCILIATION:
+        {
+            AdvertiseNewTransactionInvStandard(from, transactionHash, hopNumber);
         }
     }
 }

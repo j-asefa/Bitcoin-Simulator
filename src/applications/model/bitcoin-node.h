@@ -113,6 +113,7 @@ protected:
 
 
 
+  void ReconcileWithNewPeer(void);
   void RequestIncomingFilters(void);
   void ConstructOutgoingFilters (void);
   void ConstructDandelionLinks(void);
@@ -200,8 +201,10 @@ protected:
   uint32_t gotGetData;
 
 
-  std::map<std::string, std::vector<Ipv4Address>> peersKnowTx;
+  std::map<std::string, std::vector<Ipv4Address>>     peersKnowTx;
 
+  std::map<Ipv4Address, std::vector<std::string>>     m_peerReconciliationSets;         //!< Set of all txs we've seen, to be reconciled with peers
+  std::list<Ipv4Address>                              m_reconcilePeers;                 //!< Queue holding peers with which we will reconcile
   std::map<Ipv4Address, Ipv4Address>                  m_DandelionLinks;                 //!< Map to choose peer for outgoing message based on peer of incoming message 
   std::vector<Ipv4Address>                            m_peersAddresses;                 //!< The addresses of peers
   std::map<Ipv4Address, double>                       m_peersDownloadSpeeds;            //!< The peersDownloadSpeeds of channels
