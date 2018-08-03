@@ -359,7 +359,6 @@ BitcoinNode::ReconcileWithNewPeer(void) {
     m_peersSockets[peer]->Send(reinterpret_cast<const uint8_t*>(reconcileInfo.GetString()), reconcileInfo.GetSize(), 0);
     m_peersSockets[peer]->Send(delimiter, 1, 0);
     m_reconcilePeers.push_back(peer);
-    std::cout << " reconciled with new peer\n";
 }
 
 void
@@ -822,7 +821,6 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 reconcileData.AddMember("message", msg, allocator);
 
                 Ipv4Address peer = InetSocketAddress::ConvertFrom(from).GetIpv4();
-                std::cout << " inside reconcile case\n";
                 for (auto it = m_peerReconciliationSets[peer].begin(); it != m_peerReconciliationSets[peer].end(); ++it)
                 {
                     rapidjson::Value txhash;
@@ -845,12 +843,13 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                 //move the reconcile initiator to back of "queue"
                 m_reconcilePeers.remove(peer); 
                 m_reconcilePeers.push_back(peer);
-                std::cout << " inside reconcile case at the end\n";
                 break;
             }
             case RECONCILE_TX_RESPONSE:
             {
+                std::cout << " inside reconcile response beginning\n";
                 std::set<std::string> nodeBtransactions;
+                Ipv4Address peer = InetSocketAddress::ConvertFrom(from).GetIpv4();
                 for (rapidjson::Value::ConstValueIterator itr = d["transactions"].Begin(); itr != d["transactions"].End(); ++itr)
                 {
                     if (std::find(knownTxHashes.begin(), knownTxHashes.end(), itr->GetString()) == knownTxHashes.end()) 
@@ -859,10 +858,19 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                         reconcileData.SetObject();
 
                         rapidjson::Value txHash;
+                        rapidjson::Value msg;
+                        msg = GET_DATA;
+                        reconcileData.AddMember("message", msg, reconcileData.GetAllocator());
                         txHash.SetString(itr->GetString(), itr->GetStringLength(), reconcileData.GetAllocator());
                         reconcileData.AddMember("txHash", txHash, reconcileData.GetAllocator());
 
-                        SendMessage(INV, GET_DATA, reconcileData, from);
+                        rapidjson::StringBuffer reconcileInfo;
+                        rapidjson::Writer<rapidjson::StringBuffer> reconcileWriter(reconcileInfo);
+                        reconcileData.Accept(reconcileWriter);
+
+                        const uint8_t delimiter[] = "#";
+                        m_peersSockets[peer]->Send(reinterpret_cast<const uint8_t*>(reconcileInfo.GetString()), reconcileInfo.GetSize(), 0);
+                        m_peersSockets[peer]->Send(delimiter, 1, 0);
                     }
                     nodeBtransactions.insert(itr->GetString());
                 }
@@ -875,12 +883,24 @@ BitcoinNode::HandleRead (Ptr<Socket> socket)
                         reconcileData.SetObject();
 
                         rapidjson::Value txHash;
+                        rapidjson::Value msg;
+                        msg = INV;
+                        reconcileData.AddMember("message", msg, reconcileData.GetAllocator());
                         txHash.SetString(it->c_str(), it->length(), reconcileData.GetAllocator());
                         reconcileData.AddMember("txHash", txHash, reconcileData.GetAllocator());
 
-                        SendMessage(GET_DATA, INV, reconcileData, from);
+
+                        rapidjson::StringBuffer reconcileInfo;
+                        rapidjson::Writer<rapidjson::StringBuffer> reconcileWriter(reconcileInfo);
+                        reconcileData.Accept(reconcileWriter);
+
+                        const uint8_t delimiter[] = "#";
+                        m_peersSockets[peer]->Send(reinterpret_cast<const uint8_t*>(reconcileInfo.GetString()), reconcileInfo.GetSize(), 0);
+                        m_peersSockets[peer]->Send(delimiter, 1, 0);
                     }
                 }
+
+                std::cout << " inside reconcile response end\n";
                 break;
             }
             case INV:
@@ -1182,6 +1202,8 @@ BitcoinNode::SendMessage(enum Messages receivedMessage,  enum Messages responseM
 
   rapidjson::StringBuffer buffer;
   rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
+
 
   d["message"].SetInt(responseMessage);
   d.Accept(writer);
